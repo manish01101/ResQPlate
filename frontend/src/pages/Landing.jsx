@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+
 const Landing = () => {
   return (
     <div className="font-sans text-gray-800">

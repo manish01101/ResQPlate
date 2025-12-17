@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 const About = () => {
   return (
     <div className="font-sans text-gray-800">
@@ -140,6 +142,11 @@ const About = () => {
         <h2 className="text-2xl font-bold mb-4">
           Together, We Can End Food Waste
         </h2>
+         <Link to="/register">
+          <button className="bg-green-600 hover:bg-green-500 text-white px-8 py-3 rounded-lg font-semibold transition mb-3">
+            Join ResQPlate Now
+          </button>
+        </Link>
         <p className="text-gray-400 mb-6 max-w-lg mx-auto">
           Join ResQPlate today and be a part of the solution.
         </p>

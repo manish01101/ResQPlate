@@ -1,14 +1,47 @@
 import { Link, useLocation } from "react-router-dom";
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Logo from "./Logo";
+import axios from "axios";
+import toast from "react-hot-toast";
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState("ngo"); // donor
 
-  const isAuthenticated = false;
-  const userRole = "donor";
+  const token = localStorage.getItem("token");
+
+  useEffect(() => {
+    setIsLoading(true);
+
+    const fetchUserDetail = async () => {
+      try {
+        const res = axios.get(`${BACKEND_URL}/api/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res) {
+          setIsAuthenticated(true);
+          setUserRole(res.userRole);
+          localStorage.setItem("role", res.userRole);
+        }
+      } catch (error) {
+        toast.error("Error Occured!", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchUserDetail();
+  }, [token]);
+
+  const handleLogout = () => {
+    localStorage.clear();
+    setIsAuthenticated(false);
+    setUserRole("");
+  };
 
   const isActive = (path) =>
     location.pathname === path
@@ -59,11 +92,14 @@ const Navbar = () => {
             ) : (
               <div className="flex items-center space-x-4 ml-4">
                 <Link to="/dashboard">
-                  <button className="bg-blue-50 text-blue-600 border border-blue-200 px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-100 transition">
+                  <button className="bg-blue-50 text-blue-600 border border-blue-200 cursor-pointer px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-100 transition">
                     {userRole === "donor" ? "My Donations" : "Find Food"}
                   </button>
                 </Link>
-                <button className="text-gray-500 hover:text-red-500 font-medium text-sm transition">
+                <button
+                  className="text-gray-500 cursor-pointer hover:text-red-500 font-medium text-sm transition"
+                  onClick={handleLogout}
+                >
                   Logout
                 </button>
               </div>

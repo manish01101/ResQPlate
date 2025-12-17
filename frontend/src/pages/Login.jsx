@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Mail, Lock, Eye, EyeOff, Loader2, LogIn, ArrowRight } from "lucide-react";
+import toast from 'react-hot-toast'
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 const Login = () => {
   const navigate = useNavigate();
@@ -14,7 +16,7 @@ const Login = () => {
   const [form, setForm] = useState({
     email: "",
     password: "",
-    role: "donor", // Default to donor, or remove if backend detects role auto-magically
+    role: "donor", 
   });
 
   // Handle Input Change
@@ -30,20 +32,19 @@ const Login = () => {
     setError("");
 
     try {
-      // FIX: Changed endpoint to /login and payload to 'form'
-      const res = await axios.post("http://localhost:5000/api/login", form);
+      const res = await axios.post(`${BACKEND_URL}/api/signin`, form);
       
-      // Save Token & Role
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("role", res.data.user.role);
-      
-      // Redirect to Dashboard
+      toast.success("Login Successful!")
       navigate("/dashboard");
+
     } catch (err) {
       console.error(err);
       // Better error handling
       const msg = err.response?.data?.message || "Invalid email or password.";
       setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }

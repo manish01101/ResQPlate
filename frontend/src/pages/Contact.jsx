@@ -1,5 +1,16 @@
 import { useState } from "react";
-import { Send, Phone, Mail, MapPin, Loader2, ArrowRight, MessageSquare } from "lucide-react";
+import {
+  Phone,
+  Mail,
+  MapPin,
+  Loader2,
+  ArrowRight,
+  MessageSquare,
+} from "lucide-react";
+import toast from "react-hot-toast";
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+// console.log("backend", BACKEND_URL)
 
 const Contact = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -9,7 +20,7 @@ const Contact = () => {
     name: "",
     email: "",
     subject: "General Inquiry",
-    message: ""
+    message: "",
   });
 
   const handleChange = (e) => {
@@ -19,29 +30,43 @@ const Contact = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Form Data:", form);
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/contact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("Message sent!");
+        setIsLoading(false);
+        setIsSent(true);
+        setFormData({ name: "", email: "", subject: "", message: "" }); // reset form
+      } else {
+        toast.error("Failed: " + data.error);
+      }
+    } catch (err) {
+      toast.error("Something went wrong");
+      setIsSent(false);
+    } finally {
       setIsLoading(false);
-      setIsSent(true);
-      // Reset form after delay
-      setTimeout(() => {
-        setIsSent(false);
-        setForm({ name: "", email: "", subject: "General Inquiry", message: "" });
-      }, 3000);
-    }, 1500);
+    }
   };
 
   return (
     <div className="min-h-screen flex bg-white font-sans overflow-hidden">
-      
       {/* LEFT SIDE - INFO & VISUALS */}
       <div className="hidden lg:flex w-1/2 bg-slate-900 relative flex-col justify-between p-12 overflow-hidden">
         {/* Background Image */}
-        <div 
+        <div
           className="absolute inset-0 opacity-40 bg-cover bg-center"
-          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1523966211575-eb4a01e7dd51?q=80&w=1310&auto=format&fit=crop')" }}
+          style={{
+            backgroundImage:
+              "url('https://images.unsplash.com/photo-1523966211575-eb4a01e7dd51?q=80&w=1310&auto=format&fit=crop')",
+          }}
         ></div>
         <div className="absolute inset-0 bg-gradient-to-br from-green-900/90 to-slate-900/80"></div>
 
@@ -51,11 +76,12 @@ const Contact = () => {
             <MessageSquare size={32} className="text-green-400" />
           </div>
           <h1 className="text-5xl font-bold mb-6 leading-tight">
-            Let's Start a <br/>
+            Let's Start a <br />
             <span className="text-green-400">Conversation.</span>
           </h1>
           <p className="text-lg text-green-100/80 leading-relaxed max-w-md">
-            Whether you want to partner with us, volunteer, or just say hello—we are ready to listen.
+            Whether you want to partner with us, volunteer, or just say hello—we
+            are ready to listen.
           </p>
         </div>
 
@@ -66,7 +92,9 @@ const Contact = () => {
               <Mail size={20} />
             </div>
             <div>
-              <p className="text-xs text-green-200 uppercase tracking-wider font-semibold">Email Us</p>
+              <p className="text-xs text-green-200 uppercase tracking-wider font-semibold">
+                Email Us
+              </p>
               <p className="text-white font-medium">support@resqplate.com</p>
             </div>
           </div>
@@ -76,8 +104,10 @@ const Contact = () => {
               <Phone size={20} />
             </div>
             <div>
-              <p className="text-xs text-green-200 uppercase tracking-wider font-semibold">Call Us</p>
-              <p className="text-white font-medium">+91 98765 43210</p>
+              <p className="text-xs text-green-200 uppercase tracking-wider font-semibold">
+                Call Us
+              </p>
+              <p className="text-white font-medium">+91 9999999999</p>
             </div>
           </div>
 
@@ -86,8 +116,12 @@ const Contact = () => {
               <MapPin size={20} />
             </div>
             <div>
-              <p className="text-xs text-green-200 uppercase tracking-wider font-semibold">Visit Us</p>
-              <p className="text-white font-medium">123 Tech City, Innovation Hub, India</p>
+              <p className="text-xs text-green-200 uppercase tracking-wider font-semibold">
+                Visit Us
+              </p>
+              <p className="text-white font-medium">
+                123 Tech City, Innovation Hub, India
+              </p>
             </div>
           </div>
         </div>
@@ -96,17 +130,21 @@ const Contact = () => {
       {/* RIGHT SIDE - FORM */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 lg:p-12 bg-gray-50/50">
         <div className="w-full max-w-lg bg-white p-8 rounded-2xl shadow-xl shadow-gray-100 border border-gray-100">
-          
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Get in Touch</h2>
-            <p className="text-gray-500">Fill out the form and we will get back to you within 24 hours.</p>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              Get in Touch
+            </h2>
+            <p className="text-gray-500">
+              Fill out the form and we will get back to you within 24 hours.
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700">Name</label>
+                <label className="text-sm font-semibold text-gray-700">
+                  Name
+                </label>
                 <input
                   type="text"
                   name="name"
@@ -118,7 +156,9 @@ const Contact = () => {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700">Email</label>
+                <label className="text-sm font-semibold text-gray-700">
+                  Email
+                </label>
                 <input
                   type="email"
                   name="email"
@@ -132,7 +172,9 @@ const Contact = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700">Subject</label>
+              <label className="text-sm font-semibold text-gray-700">
+                Subject
+              </label>
               <select
                 name="subject"
                 value={form.subject}
@@ -147,7 +189,9 @@ const Contact = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700">Message</label>
+              <label className="text-sm font-semibold text-gray-700">
+                Message
+              </label>
               <textarea
                 name="message"
                 value={form.message}
@@ -163,8 +207,8 @@ const Contact = () => {
               type="submit"
               disabled={isLoading || isSent}
               className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2 group ${
-                isSent 
-                  ? "bg-green-500 text-white cursor-default" 
+                isSent
+                  ? "bg-green-500 text-white cursor-default"
                   : "bg-green-600 hover:bg-green-700 text-white hover:scale-[1.01] active:scale-[0.98] shadow-green-600/20"
               }`}
             >
@@ -174,7 +218,11 @@ const Contact = () => {
                 "Message Sent!"
               ) : (
                 <>
-                  Send Message <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                  Send Message{" "}
+                  <ArrowRight
+                    size={20}
+                    className="group-hover:translate-x-1 transition-transform"
+                  />
                 </>
               )}
             </button>
