@@ -6,6 +6,7 @@ import Signup from "./pages/Signup.jsx";
 import Contact from "./pages/Contact.jsx";
 import About from "./pages/About.jsx";
 import { Toaster } from "react-hot-toast";
+import Dashboard from "./components/Dashboard.jsx";
 
 function App() {
   return (
@@ -18,6 +19,9 @@ function App() {
         <Route path="/register" element={<Signup />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/about" element={<About />} />
+        {/* by useParams */}
+        {/* <Route path="/dashboard/:role" element={<DonorDashboard />} />  */}
+        <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
     </BrowserRouter>
   );

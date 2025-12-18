@@ -14,6 +14,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { useAuth } from "../context/AuthContext";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -25,7 +26,7 @@ const Signup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
-
+  const { loginUtils } = useAuth();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -94,9 +95,9 @@ const Signup = () => {
 
     try {
       const res = await axios.post(`${BACKEND_URL}/api/signup`, payload);
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("role", res.data.user.role);
+      loginUtils(res.data.token, res.data.role);
       toast.success("Signup Successful!");
+      // navigate(`/dashboard/${res.data.role}`);
       navigate("/dashboard");
     } catch (error) {
       const msg = error.response?.data?.message || "Signup failed.";
@@ -305,7 +306,7 @@ const Signup = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-green-600/20 transition-all hover:scale-[1.01] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-green-600/20 transition-all hover:scale-[1.01] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 group cursor-pointer  "
             >
               {isLoading ? (
                 <Loader2 className="animate-spin" />

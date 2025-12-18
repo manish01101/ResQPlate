@@ -1,22 +1,32 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Mail, Lock, Eye, EyeOff, Loader2, LogIn, ArrowRight } from "lucide-react";
-import toast from 'react-hot-toast'
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  Loader2,
+  LogIn,
+  ArrowRight,
+} from "lucide-react";
+import toast from "react-hot-toast";
+import { useAuth } from "../context/AuthContext";
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 const Login = () => {
   const navigate = useNavigate();
-  
+
   // State Management
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const { loginUtils } = useAuth();
 
   const [form, setForm] = useState({
     email: "",
     password: "",
-    role: "donor", 
+    role: "donor",
   });
 
   // Handle Input Change
@@ -33,12 +43,10 @@ const Login = () => {
 
     try {
       const res = await axios.post(`${BACKEND_URL}/api/signin`, form);
-      
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("role", res.data.user.role);
-      toast.success("Login Successful!")
+      loginUtils(res.data.token, res.data.role);
+      toast.success("Login Successful!");
+      // navigate(`/dashboard/${res.data.role}`);
       navigate("/dashboard");
-
     } catch (err) {
       console.error(err);
       // Better error handling
@@ -52,13 +60,15 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex bg-white font-sans overflow-hidden">
-      
       {/* LEFT SIDE - VISUAL HERO (Matches Signup) */}
       <div className="hidden lg:flex w-1/2 bg-green-900 relative items-center justify-center overflow-hidden">
         {/* Background Image */}
-        <div 
+        <div
           className="absolute inset-0 opacity-40 bg-cover bg-center"
-          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1488459716781-31db52582fe9?q=80&w=1470&auto=format&fit=crop')" }}
+          style={{
+            backgroundImage:
+              "url('https://images.unsplash.com/photo-1488459716781-31db52582fe9?q=80&w=1470&auto=format&fit=crop')",
+          }}
         ></div>
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-green-900/90 to-black/60"></div>
@@ -69,11 +79,11 @@ const Login = () => {
             <LogIn size={32} className="text-green-300" />
           </div>
           <h1 className="text-5xl font-bold mb-6 leading-tight">
-            Welcome <br/>
+            Welcome <br />
             <span className="text-green-400">Back.</span>
           </h1>
           <p className="text-lg text-green-100 leading-relaxed">
-            Every login brings us one step closer to a world with zero hunger. 
+            Every login brings us one step closer to a world with zero hunger.
             Continue your journey with ResQPlate today.
           </p>
         </div>
@@ -82,7 +92,6 @@ const Login = () => {
       {/* RIGHT SIDE - FORM */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-md">
-          
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Sign In</h2>
             <p className="text-gray-500">
@@ -98,10 +107,12 @@ const Login = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            
             {/* Email Field */}
             <div className="relative group">
-              <Mail className="absolute left-4 top-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" size={20} />
+              <Mail
+                className="absolute left-4 top-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors"
+                size={20}
+              />
               <input
                 type="email"
                 name="email"
@@ -114,7 +125,10 @@ const Login = () => {
 
             {/* Password Field */}
             <div className="relative group">
-              <Lock className="absolute left-4 top-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors" size={20} />
+              <Lock
+                className="absolute left-4 top-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors"
+                size={20}
+              />
               <input
                 type={showPassword ? "text" : "password"}
                 name="password"
@@ -134,9 +148,11 @@ const Login = () => {
 
             {/* Role Selection Buttons */}
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Login As</label>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">
+                Login As
+              </label>
               <div className="grid grid-cols-3 gap-3">
-                {['donor', 'ngo', 'admin'].map((r) => (
+                {["donor", "ngo", "admin"].map((r) => (
                   <button
                     key={r}
                     type="button"
@@ -163,7 +179,11 @@ const Login = () => {
                 <Loader2 className="animate-spin" />
               ) : (
                 <>
-                  Login <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                  Login{" "}
+                  <ArrowRight
+                    size={20}
+                    className="group-hover:translate-x-1 transition-transform"
+                  />
                 </>
               )}
             </button>
@@ -173,7 +193,10 @@ const Login = () => {
           <div className="mt-8 text-center">
             <p className="text-gray-500 text-sm">
               Don’t have an account?{" "}
-              <Link to="/register" className="text-green-600 font-bold hover:underline hover:text-green-700">
+              <Link
+                to="/register"
+                className="text-green-600 font-bold hover:underline hover:text-green-700"
+              >
                 Sign up here
               </Link>
             </p>
