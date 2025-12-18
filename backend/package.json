@@ -4,16 +4,18 @@
   "description": "This is the server-side application for **ResQPlate**, built with Node.js, Express, and MongoDB. It handles authentication, database management, and geo-spatial logic for food donations.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "node src/index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "mongoose": "^9.0.1"
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.0.2"
   }
 }
