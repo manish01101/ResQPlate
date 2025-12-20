@@ -6,7 +6,7 @@ import Signup from "./pages/Signup.jsx";
 import Contact from "./pages/Contact.jsx";
 import About from "./pages/About.jsx";
 import { Toaster } from "react-hot-toast";
-import Dashboard from "./components/Dashboard.jsx";
+import Dashboard from "./components/Dashboard/Dashboard.jsx";
 
 function App() {
   return (
