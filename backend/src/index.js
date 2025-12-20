@@ -1,5 +1,5 @@
 import express from "express";
-import { initDB } from "./db.js";
+import { initAdmin, initDB } from "./db.js";
 import cors from "cors";
 import mongoose from "mongoose";
 import User from "./models/User.model.js";
@@ -13,6 +13,7 @@ app.use(cors());
 app.use(express.json());
 
 initDB();
+initAdmin();
 
 // only for dev purpose
 // app.get("/deleteUser", async (req, res) => {
