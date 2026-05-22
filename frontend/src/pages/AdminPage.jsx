@@ -30,8 +30,13 @@ export default function AdminPage() {
     }
   };
 
-  const handleVerify = async (userId) => {
-    if (!window.confirm("Approve this NGO's account verification?")) return;
+  const handleVerify = async (userId, role) => {
+    if (
+      !window.confirm(
+        `Approve this ${role.toUpperCase()}'s account verification?`,
+      )
+    )
+      return;
     try {
       await api.put(`/admin/users/${userId}/verify`);
       setUsers((prev) =>
@@ -69,7 +74,7 @@ export default function AdminPage() {
           Admin Control Panel
         </h1>
         <p className="text-gray-500 mt-1">
-          Monitor platform health and verify NGO accounts.
+          Monitor platform health and verify user accounts.
         </p>
       </div>
 
@@ -177,13 +182,13 @@ export default function AdminPage() {
                     <td className="px-6 py-4">
                       {u.isVerified ? (
                         <span className="text-emerald-600 font-bold flex items-center gap-1">
-                          ✅ Verified
+                          Verified
                         </span>
                       ) : u.role === "admin" ? (
                         <span className="text-gray-400">N/A</span>
                       ) : (
                         <span className="text-amber-600 font-bold flex items-center gap-1">
-                          ⏳ Pending
+                          Pending
                         </span>
                       )}
                     </td>
@@ -191,14 +196,15 @@ export default function AdminPage() {
                       {((u.reliabilityScore || 0.5) * 100).toFixed(0)}%
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
-                      {!u.isVerified && u.role === "ngo" && (
+                      {!u.isVerified && u.role !== "admin" && (
                         <button
-                          onClick={() => handleVerify(u._id)}
+                          onClick={() => handleVerify(u._id, u.role)}
                           className="px-4 py-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-bold rounded-lg transition-colors text-xs"
                         >
-                          Approve NGO
+                          Approve {u.role === "ngo" ? "NGO" : "Donor"}
                         </button>
                       )}
+
                       {u.role !== "admin" && (
                         <button
                           onClick={() => handleDelete(u._id)}
