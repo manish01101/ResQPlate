@@ -1,7 +1,21 @@
 import axios from "axios";
 
+const getBaseURL = () => {
+  if (import.meta.env.VITE_BACKEND_URL) {
+    // Remove any accidental trailing slash from the Vercel env variable
+    const cleanUrl = import.meta.env.VITE_BACKEND_URL.replace(/\/$/, "");
+
+    // Safely ensure it ends with '/api'
+    return cleanUrl.endsWith("/api") ? cleanUrl : `${cleanUrl}/api`;
+  }
+
+  // Local development fallback.
+  // browser automatically prepends http://localhost:5173, and vite.config.js proxies it to 8080.
+  return "/api";
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_BACKEND_URL || "/api",
+  baseURL: getBaseURL(),
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
@@ -19,7 +33,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    // Prevent redirecting if the 401 came from the login page itself
+    if (err.response?.status === 401 && window.location.pathname !== "/login") {
       localStorage.removeItem("resqplate_token");
       window.location.href = "/login";
     }
