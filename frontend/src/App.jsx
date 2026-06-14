@@ -1,7 +1,9 @@
+// src/App.jsx
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
+import ResQPlateAssistant from "./components/ResQPlateAssistant"; // Added Import
 import HomePage from "./pages/HomePage";
 import AboutPage from "./pages/AboutPage";
 import ContactPage from "./pages/ContactPage";
@@ -32,9 +34,12 @@ function AppRoutes() {
   const { user } = useAuth();
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-gray-50">
+    <div className="flex flex-col min-h-screen w-full bg-gray-50 relative">
       {/* Navbar is always visible now */}
       <Navbar />
+      
+      {/* Global AI Chatbot Assistant securely injected */}
+      <ResQPlateAssistant />
       
       <main className="flex-grow w-full flex flex-col">
         <Routes>
