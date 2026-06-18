@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-// ✅ FIXED: Imported useAuth to resolve the uncaught reference error seen in image_29b708.png
 import { useAuth } from "../context/AuthContext"; 
 import {
   HiOutlineXMark,
@@ -14,7 +13,6 @@ import {
   HiOutlineCheckCircle,
 } from "react-icons/hi2";
 
-// Unified fallback message matching your branding
 const FALLBACK_MESSAGE = "ResQBot is currently tending to the garden, but I will be back soon! 🌿";
 
 const QUICK_REPLIES = [
@@ -182,7 +180,7 @@ function BotAvatar({ size = 28, pulse = false, borderColor = "#0a0d11" }) {
 
 function TypingDots({ color }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 2px" }}>
+    <div style={{ display: "flex", padding: "4px 2px", alignItems: "center", gap: 5 }}>
       {[0, 1, 2].map((i) => (
         <motion.span
           key={i}
@@ -364,7 +362,6 @@ function ActionBtn({ onClick, disabled, active, children, t, title }) {
 }
 
 export default function ResQBot() {
-  // ✅ FIXED: Safely wrapped in case AuthProvider layout configuration varies during load
   const authContext = useAuth();
   const user = authContext?.user || null;
 
@@ -432,13 +429,11 @@ export default function ResQBot() {
       setIsTyping(true);
 
       try {
-        // FIXED: Maps local thread logs securely into the backend API message matrix format
         const groqFormattedMessages = updatedMessages.map(msg => ({
           role: msg.sender === "user" ? "user" : "assistant",
           content: msg.text
         }));
 
-        // FIXED: Passes array payload cleanly down to our root secure endpoint
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: {
@@ -552,7 +547,6 @@ export default function ResQBot() {
         }
       `}</style>
 
-      {/* Chat Window */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -577,7 +571,6 @@ export default function ResQBot() {
               border: `1px solid ${t.windowBorder}`,
             }}
           >
-            {/* Header */}
             <div
               style={{
                 background: t.headerBg,
@@ -647,7 +640,6 @@ export default function ResQBot() {
               </div>
             </div>
 
-            {/* Body */}
             <AnimatePresence initial={false}>
               {!isMinimized && (
                 <motion.div
@@ -658,7 +650,6 @@ export default function ResQBot() {
                   transition={{ duration: 0.22, ease: "easeInOut" }}
                   style={{ overflow: "hidden" }}
                 >
-                  {/* Messages */}
                   <div
                     ref={messagesContainerRef}
                     style={{ position: "relative", height: 350, overflowY: "auto", background: t.msgAreaBg }}
@@ -706,7 +697,6 @@ export default function ResQBot() {
                     </div>
                   </div>
 
-                  {/* Quick Replies */}
                   <AnimatePresence>
                     {messages.length <= 1 && !isTyping && (
                       <motion.div
@@ -756,54 +746,50 @@ export default function ResQBot() {
                     )}
                   </AnimatePresence>
 
-                  {/* Image Preview */}
-                  <AnimatePresence>
-                    {imagePreview && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
+                  {imagePreview && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "8px 14px",
+                        background: t.imgPreviewBg,
+                        borderTop: `1px solid ${t.imgPreviewBorder}`,
+                      }}
+                    >
+                      <img
+                        src={imagePreview}
+                        alt="preview"
+                        style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8 }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11.5, color: t.botBubbleText, fontWeight: 500 }}>
+                          📷 Food image ready to analyze
+                        </div>
+                        <div style={{ fontSize: 10.5, color: t.inputPlaceholder, marginTop: 1 }}>
+                          Add a message or send to analyze
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => { setImageBase64(null); setImagePreview(null); }}
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 10,
-                          padding: "8px 14px",
-                          background: t.imgPreviewBg,
-                          borderTop: `1px solid ${t.imgPreviewBorder}`,
+                          background: "none",
+                          border: "none",
+                          color: t.imgRemoveText,
+                          cursor: "pointer",
+                          fontSize: 20,
+                          lineHeight: 1,
+                          padding: 4,
                         }}
                       >
-                        <img
-                          src={imagePreview}
-                          alt="preview"
-                          style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8 }}
-                        />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 11.5, color: t.botBubbleText, fontWeight: 500 }}>
-                            📷 Food image ready to analyze
-                          </div>
-                          <div style={{ fontSize: 10.5, color: t.inputPlaceholder, marginTop: 1 }}>
-                            Add a message or send to analyze
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => { setImageBase64(null); setImagePreview(null); }}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            color: t.imgRemoveText,
-                            cursor: "pointer",
-                            fontSize: 20,
-                            lineHeight: 1,
-                            padding: 4,
-                          }}
-                        >
-                          ×
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                        ×
+                      </button>
+                    </motion.div>
+                  )}
 
-                  {/* Input */}
                   <div
                     style={{
                       padding: "10px 12px",
@@ -880,7 +866,6 @@ export default function ResQBot() {
                     </div>
                   </div>
 
-                  {/* Footer */}
                   <div style={{
                     padding: "4px 0 10px",
                     display: "flex",
@@ -901,7 +886,6 @@ export default function ResQBot() {
         )}
       </AnimatePresence>
 
-      {/* FAB Button Layout */}
       <motion.button
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.88 }}
@@ -926,7 +910,7 @@ export default function ResQBot() {
           overflow: "visible",
         }}
       >
-        {!isOpen && <div className="resqbot-fab-ring" />}
+        {!isOpen && <div className="resqfab-ring" />}
 
         <AnimatePresence mode="wait">
           {isOpen && !isMinimized ? (
