@@ -73,12 +73,12 @@ export default function MyClaimsPage() {
     );
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 dark:text-slate-200">
       <div className="mb-8">
-        <h1 className="text-3xl font-serif font-bold text-gray-900">
+        <h1 className="text-3xl font-serif font-bold text-gray-900 dark:text-slate-100">
           {user?.role === "donor" ? "Manage Donations" : "My Claims"}
         </h1>
-        <p className="text-gray-500 mt-1">
+        <p className="text-gray-500 dark:text-slate-400 mt-1">
           {user?.role === "donor"
             ? "Review incoming pickup requests and manage your active food listings."
             : "Track the status of your food pickup requests."}
@@ -93,16 +93,16 @@ export default function MyClaimsPage() {
 
       {/* DONOR TABS */}
       {user?.role === "donor" && (
-        <div className="flex gap-4 mb-6 border-b border-gray-200 pb-px">
+        <div className="flex gap-4 mb-6 border-b border-gray-200 dark:border-slate-800 pb-px">
           <button
-            className={`px-6 py-3 font-bold text-sm rounded-t-lg transition-colors ${donorTab === "requests" ? "bg-white border-t border-x border-gray-200 text-emerald-700 shadow-sm relative top-px" : "text-gray-500 hover:text-gray-700"}`}
+            className={`px-6 py-3 font-bold text-sm rounded-t-lg transition-colors ${donorTab === "requests" ? "bg-white dark:bg-slate-900 border-t border-x border-gray-200 dark:border-slate-800 text-emerald-700 dark:text-emerald-400 shadow-sm relative top-px" : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"}`}
             onClick={() => setDonorTab("requests")}
           >
             🔔 Incoming Requests (
             {claims.filter((c) => c.status === "pending").length})
           </button>
           <button
-            className={`px-6 py-3 font-bold text-sm rounded-t-lg transition-colors ${donorTab === "listings" ? "bg-white border-t border-x border-gray-200 text-emerald-700 shadow-sm relative top-px" : "text-gray-500 hover:text-gray-700"}`}
+            className={`px-6 py-3 font-bold text-sm rounded-t-lg transition-colors ${donorTab === "listings" ? "bg-white dark:bg-slate-900 border-t border-x border-gray-200 dark:border-slate-800 text-emerald-700 dark:text-emerald-400 shadow-sm relative top-px" : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"}`}
             onClick={() => setDonorTab("listings")}
           >
             📋 My Food Listings
@@ -148,7 +148,7 @@ export default function MyClaimsPage() {
                         </span>
                       )}
                     </p>
-                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-400 dark:text-slate-500">
                       <span>
                         Requested:{" "}
                         {new Date(claim.requestedAt).toLocaleString()}

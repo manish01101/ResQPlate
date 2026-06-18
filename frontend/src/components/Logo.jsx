@@ -36,7 +36,8 @@ const Logo = ({
 
       {/* Typography */}
       <span className="text-2xl font-extrabold tracking-tight font-sans">
-        ResQ<span className={iconColor}>Plate</span>
+        <span className="text-gray-500">ResQ</span>
+        <span className={iconColor}>Plate</span>
       </span>
     </Link>
   );

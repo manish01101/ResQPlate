@@ -6,8 +6,7 @@ export default function HomePage() {
   const navigate = useNavigate();
 
   return (
-    <div className="w-full bg-white flex flex-col min-h-screen font-sans">
-      
+    <div className="w-full bg-white dark:bg-slate-950 flex flex-col min-h-screen font-sans">
       {/* 🌟 HERO SECTION */}
       <div className="relative bg-emerald-900 overflow-hidden">
         {/* Ambient Background Decorations */}
@@ -53,58 +52,94 @@ export default function HomePage() {
       </div>
 
       {/* 📊 IMPACT STATS BANNER */}
-      <div className="bg-white py-12 border-b border-gray-100 relative z-10 -mt-8 mx-4 sm:mx-8 md:mx-auto max-w-5xl rounded-2xl shadow-lg">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center divide-x divide-gray-100">
+      <div className="bg-white dark:bg-slate-900 py-12 border-b border-gray-100 dark:border-slate-800 relative z-10 -mt-8 mx-4 sm:mx-8 md:mx-auto max-w-5xl rounded-2xl shadow-lg">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center divide-x divide-gray-100 dark:divide-slate-800">
           <div className="flex flex-col">
-            <span className="text-4xl font-extrabold text-emerald-600">O(log N)</span>
-            <span className="text-sm text-gray-500 font-medium mt-1">Query Speed</span>
+            <span className="text-4xl font-extrabold text-emerald-600">
+              O(log N)
+            </span>
+            <span className="text-sm text-gray-500 font-medium mt-1">
+              Query Speed
+            </span>
           </div>
           <div className="flex flex-col">
-            <span className="text-4xl font-extrabold text-emerald-600">100%</span>
-            <span className="text-sm text-gray-500 font-medium mt-1">Transparent</span>
+            <span className="text-4xl font-extrabold text-emerald-600">
+              100%
+            </span>
+            <span className="text-sm text-gray-500 font-medium mt-1">
+              Transparent
+            </span>
           </div>
           <div className="flex flex-col">
-            <span className="text-4xl font-extrabold text-emerald-600">&lt; 1s</span>
-            <span className="text-sm text-gray-500 font-medium mt-1">Matching Time</span>
+            <span className="text-4xl font-extrabold text-emerald-600">
+              &lt; 1s
+            </span>
+            <span className="text-sm text-gray-500 font-medium mt-1">
+              Matching Time
+            </span>
           </div>
           <div className="flex flex-col">
-            <span className="text-4xl font-extrabold text-emerald-600">24/7</span>
-            <span className="text-sm text-gray-500 font-medium mt-1">Live Tracking</span>
+            <span className="text-4xl font-extrabold text-emerald-600">
+              24/7
+            </span>
+            <span className="text-sm text-gray-500 font-medium mt-1">
+              Live Tracking
+            </span>
           </div>
         </div>
       </div>
 
       {/* 🚀 TECHNOLOGY & FEATURES SECTION */}
-      <div className="bg-gray-50 py-24">
+      <div className="bg-gray-50 dark:bg-slate-900/60 py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-sm font-bold text-emerald-600 tracking-wider uppercase mb-2">How it works</h2>
-            <h3 className="text-3xl md:text-4xl font-serif font-bold text-gray-900">Built for speed & reliability</h3>
-            <p className="mt-4 text-gray-500 max-w-2xl mx-auto text-lg">
-              Our platform uses cutting-edge algorithms to ensure food goes to the most reliable, nearest volunteers before it expires.
+            <h2 className="text-sm font-bold text-emerald-600 tracking-wider uppercase mb-2">
+              How it works
+            </h2>
+            <h3 className="text-3xl md:text-4xl font-serif font-bold text-gray-900 dark:text-slate-100">
+              Built for speed & reliability
+            </h3>
+            <p className="mt-4 text-gray-500 dark:text-slate-400 max-w-2xl mx-auto text-lg">
+              Our platform uses cutting-edge algorithms to ensure food goes to
+              the most reliable, nearest volunteers before it expires.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-center">
-              <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-6">📍</div>
-              <h4 className="text-xl font-bold text-gray-900 mb-3">Geo-Spatial Search</h4>
-              <p className="text-gray-500 leading-relaxed">
-                MongoDB 2dsphere indexing provides instant O(log N) proximity matching, finding the nearest food instantly.
+              <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-6">
+                📍
+              </div>
+              <h4 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-3">
+                Geo-Spatial Search
+              </h4>
+              <p className="text-gray-500 dark:text-slate-400 leading-relaxed">
+                MongoDB 2dsphere indexing provides instant O(log N) proximity
+                matching, finding the nearest food instantly.
               </p>
             </div>
-            <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-6">🧠</div>
-              <h4 className="text-xl font-bold text-gray-900 mb-3">Mod-FA Algorithm</h4>
-              <p className="text-gray-500 leading-relaxed">
-                The Modified Firefly Algorithm balances Haversine distance and NGO reliability scores for optimal allocation.
+            <div className="bg-white dark:bg-slate-900 dark:border-slate-800 p-8 rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-6">
+                🧠
+              </div>
+              <h4 className="text-xl font-bold text-gray-900  mb-3">
+                Mod-FA Algorithm
+              </h4>
+              <p className="text-gray-500 dark:text-slate-400 leading-relaxed">
+                The Modified Firefly Algorithm balances Haversine distance and
+                NGO reliability scores for optimal allocation.
               </p>
             </div>
-            <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-center">
-              <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-6">⏰</div>
-              <h4 className="text-xl font-bold text-gray-900 mb-3">Auto-Expiry Logic</h4>
-              <p className="text-gray-500 leading-relaxed">
-                Food freshness is guaranteed with automated timeline removals, ensuring expired food is never consumed.
+            <div className="bg-white dark:bg-slate-900 dark:border-slate-800 p-8 rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-center">
+              <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-6">
+                ⏰
+              </div>
+              <h4 className="text-xl font-bold text-gray-900  mb-3">
+                Auto-Expiry Logic
+              </h4>
+              <p className="text-gray-500 dark:text-slate-400 leading-relaxed">
+                Food freshness is guaranteed with automated timeline removals,
+                ensuring expired food is never consumed.
               </p>
             </div>
           </div>
@@ -116,8 +151,12 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center mb-16 pb-12 border-b border-gray-800 gap-6">
             <div>
-              <h2 className="text-3xl font-serif font-bold mb-2">Together, we can end food waste.</h2>
-              <p className="text-gray-400 text-lg">Join ResQPlate today and be a part of the solution.</p>
+              <h2 className="text-3xl font-serif font-bold mb-2">
+                Together, we can end food waste.
+              </h2>
+              <p className="text-gray-400 text-lg">
+                Join ResQPlate today and be a part of the solution.
+              </p>
             </div>
             <Link to="/register">
               <button className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-xl font-bold shadow-lg transition-colors whitespace-nowrap text-lg">
@@ -129,31 +168,72 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
             <div className="md:col-span-2">
               <div className="flex items-center justify-center md:justify-start mb-4">
-                <Logo className="text-white" plateColor="text-white" iconColor="text-emerald-400" />
+                <Logo
+                  className="text-white"
+                  plateColor="text-white"
+                  iconColor="text-emerald-400"
+                />
               </div>
               <p className="text-gray-400 max-w-sm mx-auto md:mx-0">
-                A technology-driven platform designed to reduce food waste and combat hunger using intelligent algorithms and real-time mapping.
+                A technology-driven platform designed to reduce food waste and
+                combat hunger using intelligent algorithms and real-time
+                mapping.
               </p>
             </div>
             <div>
               <h4 className="text-lg font-bold mb-4 text-white">Platform</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><Link to="/about" className="hover:text-emerald-400 transition-colors">About Us</Link></li>
-                <li><Link to="/contact" className="hover:text-emerald-400 transition-colors">Contact</Link></li>
-                <li><Link to="/register" className="hover:text-emerald-400 transition-colors">Join as NGO</Link></li>
+                <li>
+                  <Link
+                    to="/about"
+                    className="hover:text-emerald-400 transition-colors"
+                  >
+                    About Us
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/contact"
+                    className="hover:text-emerald-400 transition-colors"
+                  >
+                    Contact
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/register"
+                    className="hover:text-emerald-400 transition-colors"
+                  >
+                    Join as NGO
+                  </Link>
+                </li>
               </ul>
             </div>
             <div>
               <h4 className="text-lg font-bold mb-4 text-white">Legal</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><span className="cursor-pointer hover:text-emerald-400 transition-colors">Privacy Policy</span></li>
-                <li><span className="cursor-pointer hover:text-emerald-400 transition-colors">Terms of Service</span></li>
-                <li><span className="cursor-pointer hover:text-emerald-400 transition-colors">Safety Guidelines</span></li>
+                <li>
+                  <span className="cursor-pointer hover:text-emerald-400 transition-colors">
+                    Privacy Policy
+                  </span>
+                </li>
+                <li>
+                  <span className="cursor-pointer hover:text-emerald-400 transition-colors">
+                    Terms of Service
+                  </span>
+                </li>
+                <li>
+                  <span className="cursor-pointer hover:text-emerald-400 transition-colors">
+                    Safety Guidelines
+                  </span>
+                </li>
               </ul>
             </div>
           </div>
           <div className="text-center text-gray-500 text-sm">
-            <p>© {new Date().getFullYear()} ResQPlate — Built for Social Impact.</p>
+            <p>
+              © {new Date().getFullYear()} ResQPlate — Built for Social Impact.
+            </p>
           </div>
         </div>
       </footer>

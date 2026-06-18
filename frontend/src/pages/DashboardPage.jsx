@@ -18,7 +18,7 @@ export default function DashboardPage() {
   }, [user]);
 
   return (
-    <div className="w-full pb-12">
+    <div className="w-full pb-12 dark:bg-slate-950 min-h-screen">
       <div className="bg-emerald-800 pb-32 pt-14 w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
@@ -73,7 +73,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <h2 className="text-xl font-bold text-gray-900 mt-8 mb-4">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-8 mb-4">
           Quick Actions
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

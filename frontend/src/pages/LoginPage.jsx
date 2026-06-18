@@ -24,14 +24,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-100 to-gray-50 p-4 w-full">
-      <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-md border border-gray-100">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-100 to-gray-50 dark:from-slate-950 dark:to-slate-900 p-4 w-full">
+      <div className="bg-white dark:bg-slate-900 p-10 rounded-2xl shadow-xl w-full max-w-md border border-gray-100 dark:border-slate-800">
         <div className="text-center mb-8">
           <div className="font-serif text-3xl font-bold text-emerald-700 mb-2">
             ResQPlate
           </div>
-          <h2 className="text-2xl font-bold text-gray-900">Welcome Back</h2>
-          <p className="text-gray-500 mt-1">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+            Welcome Back
+          </h2>
+          <p className="text-gray-500 dark:text-slate-400 mt-1">
             Sign in to continue fighting food waste.
           </p>
         </div>
@@ -79,7 +81,7 @@ export default function LoginPage() {
             {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
-        <p className="text-center mt-8 text-gray-600 text-sm">
+        <p className="text-center mt-8 text-gray-600 dark:text-slate-400 text-sm">
           New here?{" "}
           <Link
             to="/register"

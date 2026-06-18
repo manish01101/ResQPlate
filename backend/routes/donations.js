@@ -79,6 +79,7 @@ router.post("/", protect, authorize("donor", "admin"), async (req, res) => {
       expiry_datetime,
       location,
       notes,
+      image_url,
     } = req.body;
 
     // --- SAFETY CHECK ---
@@ -102,6 +103,7 @@ router.post("/", protect, authorize("donor", "admin"), async (req, res) => {
       expiry_datetime,
       location,
       notes,
+      image_url,
     });
 
     // Run mod-FA to find top volunteers to notify
@@ -167,6 +169,7 @@ router.put("/:id", protect, async (req, res) => {
       "food_type",
       "expiry_datetime",
       "notes",
+      "image_url",
     ];
     allowed.forEach((field) => {
       if (req.body[field] !== undefined) donation[field] = req.body[field];

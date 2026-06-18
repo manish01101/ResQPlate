@@ -3,7 +3,7 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
-import ResQPlateAssistant from "./components/ResQPlateAssistant"; // Added Import
+import ResQPlateAssistant from "./components/ResQPlateAssistant";
 import HomePage from "./pages/HomePage";
 import AboutPage from "./pages/AboutPage";
 import ContactPage from "./pages/ContactPage";
@@ -17,16 +17,18 @@ import AdminPage from "./pages/AdminPage";
 
 function PrivateRoute({ children, roles }) {
   const { user, loading } = useAuth();
-  
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 w-full">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
-    </div>
-  );
-  
+
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950 w-full">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      </div>
+    );
+
   if (!user) return <Navigate to="/login" replace />;
-  if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
-  
+  if (roles && !roles.includes(user.role))
+    return <Navigate to="/dashboard" replace />;
+
   return children;
 }
 
@@ -34,13 +36,13 @@ function AppRoutes() {
   const { user } = useAuth();
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-gray-50 relative">
+    <div className="flex flex-col min-h-screen w-full bg-gray-50 relative dark:bg-slate-950">
       {/* Navbar is always visible now */}
       <Navbar />
       
       {/* Global AI Chatbot Assistant securely injected */}
       <ResQPlateAssistant />
-      
+
       <main className="flex-grow w-full flex flex-col">
         <Routes>
           {/* Public Pages */}
@@ -49,17 +51,65 @@ function AppRoutes() {
           <Route path="/contact" element={<ContactPage />} />
 
           {/* Auth Pages */}
-          <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
-          <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+          <Route
+            path="/login"
+            element={
+              user ? <Navigate to="/dashboard" replace /> : <LoginPage />
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              user ? <Navigate to="/dashboard" replace /> : <RegisterPage />
+            }
+          />
 
           {/* Private App Pages */}
-          <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
-          <Route path="/find-food" element={<PrivateRoute><FindFoodPage /></PrivateRoute>} />
-          <Route path="/donate" element={<PrivateRoute roles={["donor", "admin"]}><DonatePage /></PrivateRoute>} />
-          <Route path="/my-claims" element={<PrivateRoute roles={["ngo", "donor", "admin"]}><MyClaimsPage /></PrivateRoute>} />
-          <Route path="/admin" element={<PrivateRoute roles={["admin"]}><AdminPage /></PrivateRoute>} />
-          
-          <Route path="*" element={<Navigate to={user ? "/dashboard" : "/"} replace />} />
+          <Route
+            path="/dashboard"
+            element={
+              <PrivateRoute>
+                <DashboardPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/find-food"
+            element={
+              <PrivateRoute>
+                <FindFoodPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/donate"
+            element={
+              <PrivateRoute roles={["donor", "admin"]}>
+                <DonatePage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/my-claims"
+            element={
+              <PrivateRoute roles={["ngo", "donor", "admin"]}>
+                <MyClaimsPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <PrivateRoute roles={["admin"]}>
+                <AdminPage />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="*"
+            element={<Navigate to={user ? "/dashboard" : "/"} replace />}
+          />
         </Routes>
       </main>
     </div>

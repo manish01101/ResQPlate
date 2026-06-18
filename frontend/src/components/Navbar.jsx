@@ -2,6 +2,7 @@ import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Logo from "./Logo";
+import { ThemeToggle } from "./ThemeToggle";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -28,12 +29,12 @@ export default function Navbar() {
   const navLinkClass = ({ isActive }) =>
     `inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${
       isActive
-        ? "border-emerald-500 text-gray-900"
-        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+        ? "border-emerald-500 text-gray-900 dark:text-slate-100"
+        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
     }`;
 
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50 w-full">
+    <nav className="bg-white/90 dark:bg-slate-900/90 border-b border-gray-200 dark:border-slate-800 sticky top-0 z-50 w-full backdrop-blur">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* LEFT SIDE: Logo & Links */}
@@ -92,11 +93,12 @@ export default function Navbar() {
 
           {/* RIGHT SIDE: Auth Buttons or User Profile */}
           <div className="hidden sm:ml-6 sm:flex sm:items-center gap-4">
+            <ThemeToggle />
             {!user ? (
               <>
                 <button
                   onClick={() => navigate("/login")}
-                  className="text-gray-500 hover:text-emerald-600 font-medium transition-colors text-sm"
+                  className="text-gray-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 font-medium transition-colors text-sm"
                 >
                   Sign In
                 </button>
@@ -114,12 +116,12 @@ export default function Navbar() {
                 >
                   {user?.role}
                 </span>
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                   {user?.name}
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="ml-3 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                  className="ml-3 inline-flex items-center px-4 py-2 border border-gray-300 dark:border-slate-700 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
                 >
                   Logout
                 </button>

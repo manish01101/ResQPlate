@@ -1,5 +1,5 @@
 .env
 .env.local
-seeds.js
+# seeds.js
 
 node_modules/

@@ -34,13 +34,13 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="bg-white min-h-screen flex flex-col items-center py-20 px-4 sm:px-6 lg:px-8">
+    <div className="bg-white dark:bg-slate-950 min-h-screen flex flex-col items-center py-20 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-5xl">
         <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 mb-4">
+          <h1 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 dark:text-slate-100 mb-4">
             Get in Touch
           </h1>
-          <p className="text-lg text-gray-500 max-w-2xl mx-auto">
+          <p className="text-lg text-gray-500 dark:text-slate-400 max-w-2xl mx-auto">
             Have questions about partnering with us, integrating our API, or
             volunteering? We'd love to hear from you.
           </p>
@@ -78,8 +78,8 @@ export default function ContactPage() {
           </div>
 
           {/* Form */}
-          <div className="bg-gray-50 rounded-3xl p-10 border border-gray-200">
-            <h3 className="text-2xl font-bold mb-6 text-gray-900">
+          <div className="bg-gray-50 dark:bg-slate-900 rounded-3xl p-10 border border-gray-200 dark:border-slate-800">
+            <h3 className="text-2xl font-bold mb-6 text-gray-900 dark:text-slate-100">
               Send us a message
             </h3>
 
@@ -130,7 +130,7 @@ export default function ContactPage() {
                   name="message"
                   rows="5"
                   required
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-colors resize-none"
+                  className="w-full p-3 border border-gray-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-colors resize-none"
                   placeholder="How can we help you?"
                 ></textarea>
               </div>

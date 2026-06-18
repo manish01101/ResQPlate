@@ -216,17 +216,21 @@ export default function RegisterPage() {
   };
 
   const inputClasses =
-    "w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 transition-colors";
+    "w-full p-3 border border-gray-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 transition-colors";
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-100 to-gray-50 p-4 w-full py-12">
-      <div className="bg-white p-8 md:p-10 rounded-2xl shadow-xl w-full max-w-lg border border-gray-100">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-100 to-gray-50 dark:from-slate-950 dark:to-slate-900 p-4 w-full py-12">
+      <div className="bg-white dark:bg-slate-900 p-8 md:p-10 rounded-2xl shadow-xl w-full max-w-lg border border-gray-100 dark:border-slate-800">
         <div className="text-center mb-8">
           <div className="font-serif text-3xl font-bold text-emerald-700 mb-2">
             ResQPlate
           </div>
-          <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
-          <p className="text-gray-500 mt-1">Join the food rescue community.</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+            Create Account
+          </h2>
+          <p className="text-gray-500 dark:text-slate-400 mt-1">
+            Join the food rescue community.
+          </p>
         </div>
 
         {error && (

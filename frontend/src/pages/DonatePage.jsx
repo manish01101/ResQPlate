@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -66,6 +66,7 @@ export default function DonatePage() {
     expiry_datetime: "",
     notes: "",
     address: "",
+    image_url: "",
   });
 
   // Set default map center (User's saved location or Kolkata)
@@ -80,9 +81,106 @@ export default function DonatePage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState("");
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
 
   const handleChange = (e) =>
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+
+  const handleImageSelection = (file) => {
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose a valid image file.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((prev) => ({ ...prev, image_url: reader.result }));
+      setError("");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    handleImageSelection(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    handleImageSelection(file);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const stopCameraStream = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const openCamera = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("Camera access is not supported in this browser.");
+      return;
+    }
+
+    try {
+      setCameraError("");
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+        audio: false,
+      });
+      streamRef.current = stream;
+      setIsCameraOpen(true);
+    } catch (err) {
+      setCameraError("Camera access was denied or is unavailable.");
+    }
+  };
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const context = canvas.getContext("2d");
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+    setForm((prev) => ({ ...prev, image_url: dataUrl }));
+    setError("");
+    stopCameraStream();
+    setIsCameraOpen(false);
+  };
+
+  useEffect(() => {
+    return () => stopCameraStream();
+  }, []);
+
+  useEffect(() => {
+    if (isCameraOpen && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [isCameraOpen]);
 
   // HTML5 Geolocation
   const handleGetLocation = () => {
@@ -139,6 +237,7 @@ export default function DonatePage() {
         expiry_datetime: "",
         notes: "",
         address: "",
+        image_url: "",
       });
     } catch (err) {
       setError(err.response?.data?.message || "Failed to post donation.");
@@ -148,21 +247,22 @@ export default function DonatePage() {
   };
 
   const inputClasses =
-    "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm p-3 border bg-gray-50 transition-colors";
-  const labelClasses = "block text-sm font-medium text-gray-700";
+    "mt-1 block w-full rounded-md border-gray-300 dark:border-slate-700 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm p-3 border bg-gray-50 dark:bg-slate-800 dark:text-slate-100 transition-colors";
+  const labelClasses =
+    "block text-sm font-medium text-gray-700 dark:text-slate-300";
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight font-serif">
+        <h1 className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 tracking-tight font-serif">
           Post a Food Donation
         </h1>
-        <p className="mt-2 text-lg text-gray-500">
+        <p className="mt-2 text-lg text-gray-500 dark:text-slate-400">
           Provide details about your surplus food to notify nearby NGOs.
         </p>
       </div>
 
-      <div className="bg-white shadow-xl shadow-gray-200/50 rounded-2xl overflow-hidden border border-gray-100">
+      <div className="bg-white dark:bg-slate-900 shadow-xl shadow-gray-200/50 dark:shadow-slate-950/30 rounded-2xl overflow-hidden border border-gray-100 dark:border-slate-800">
         <div className="px-4 py-5 sm:p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -227,7 +327,7 @@ export default function DonatePage() {
             </div>
 
             {/* ================= LOCATION PICKER ================= */}
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+            <div className="bg-gray-50 dark:bg-slate-800/70 p-4 rounded-xl border border-gray-200 dark:border-slate-700">
               <div className="flex justify-between items-end mb-3">
                 <label className={labelClasses}>
                   Pinpoint Pickup Location{" "}
@@ -237,13 +337,13 @@ export default function DonatePage() {
                   type="button"
                   onClick={handleGetLocation}
                   disabled={isLocating}
-                  className="text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-100/50 px-3 py-1.5 rounded-md border border-emerald-200 transition-colors flex items-center gap-1"
+                  className="text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-100/50 px-3 py-1.5 rounded-md border border-emerald-200 transition-colors flex items-center gap-1 dark:text-emerald-900"
                 >
                   {isLocating ? "Locating..." : "🎯 Get Current GPS"}
                 </button>
               </div>
 
-              <div className="h-[250px] w-full rounded-xl overflow-hidden border border-gray-300 mb-3 relative z-0">
+              <div className="h-[250px] w-full rounded-xl overflow-hidden border border-gray-300 dark:border-slate-700 mb-3 relative z-0">
                 <MapContainer
                   center={position}
                   zoom={13}
@@ -260,7 +360,7 @@ export default function DonatePage() {
                 </MapContainer>
               </div>
 
-              <p className="text-xs font-medium text-emerald-600 mb-2">
+              <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-2">
                 Click anywhere on the map to adjust the pin.
               </p>
 
@@ -276,6 +376,110 @@ export default function DonatePage() {
             {/* ============================================================== */}
 
             <div>
+              <label className={labelClasses}>Food Image (optional)</label>
+              <div
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                className={`mt-2 rounded-xl border-2 border-dashed p-4 transition-all ${
+                  isDragging
+                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
+                    : "border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/70"
+                }`}
+              >
+                <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-8 text-center hover:bg-emerald-50 dark:hover:bg-slate-800 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                  <div className="text-3xl mb-3">📤</div>
+                  <p className="text-sm font-semibold text-gray-700 dark:text-slate-200">
+                    Drag & drop an image here, or tap to browse your gallery
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                    Photos help receivers recognize the food quickly.
+                  </p>
+                </label>
+              </div>
+
+              <div className="mt-3 flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={openCamera}
+                  className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300"
+                >
+                  📷 Open Camera
+                </button>
+
+                <div className="flex-1 rounded-lg border border-gray-200 bg-white px-4 py-3 text-center text-sm text-gray-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                  Or paste an image URL below
+                </div>
+              </div>
+
+              {cameraError && (
+                <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                  {cameraError}
+                </p>
+              )}
+
+              {isCameraOpen && (
+                <div className="mt-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full rounded-lg"
+                  />
+                  <div className="mt-3 flex flex-col sm:flex-row gap-3">
+                    <button
+                      type="button"
+                      onClick={capturePhoto}
+                      className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                    >
+                      Capture Photo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        stopCameraStream();
+                        setIsCameraOpen(false);
+                      }}
+                      className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      Close Camera
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-3">
+                <input
+                  name="image_url"
+                  value={form.image_url}
+                  onChange={handleChange}
+                  placeholder="Or paste an image URL"
+                  className={inputClasses}
+                />
+              </div>
+
+              {form.image_url && (
+                <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 dark:border-slate-700">
+                  <img
+                    src={form.image_url}
+                    alt="Food preview"
+                    className="max-h-64 w-full object-contain bg-gray-100 dark:bg-slate-950"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div>
               <label className={labelClasses}>Additional Instructions</label>
               <textarea
                 name="notes"
@@ -288,13 +492,13 @@ export default function DonatePage() {
             </div>
 
             {error && (
-              <div className="rounded-md bg-red-50 p-4 border border-red-200 text-sm font-medium text-red-800">
+              <div className="rounded-md bg-red-50 dark:bg-red-950/40 p-4 border border-red-200 dark:border-red-900/50 text-sm font-medium text-red-800 dark:text-red-200">
                 {error}
               </div>
             )}
 
             {result ? (
-              <div className="rounded-xl bg-emerald-50 p-6 border border-emerald-200 text-center">
+              <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-6 border border-emerald-200 dark:border-emerald-900/50 text-center">
                 <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-emerald-100 mb-4">
                   <svg
                     className="h-6 w-6 text-emerald-600"
@@ -310,10 +514,10 @@ export default function DonatePage() {
                     />
                   </svg>
                 </div>
-                <h3 className="text-lg font-bold text-emerald-900 mb-2">
+                <h3 className="text-lg font-bold text-emerald-900 dark:text-emerald-200 mb-2">
                   Donation Published Successfully!
                 </h3>
-                <p className="text-sm text-emerald-700 mb-6">
+                <p className="text-sm text-emerald-700 dark:text-emerald-300 mb-6">
                   Nearby volunteers have been prioritized and notified.
                 </p>
 
