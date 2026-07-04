@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "../context/AuthContext"; 
 import {
   HiOutlineXMark,
   HiOutlinePaperAirplane,
@@ -12,8 +11,18 @@ import {
   HiOutlineClipboardDocument,
   HiOutlineCheckCircle,
 } from "react-icons/hi2";
+import { Groq } from "groq-sdk";
 
-const FALLBACK_MESSAGE = "ResQBot is currently tending to the garden, but I will be back soon! 🌿";
+const SYSTEM_INSTRUCTION = `You are ResQBot, the AI assistant for ResQPlate — a food rescue platform connecting food donors with NGOs to reduce waste and fight hunger in Patna. Use botanical metaphors (roots, leaves, oxygen, garden, growth) when appropriate.
+
+Your role:
+- Help users donate surplus food and navigate donation listings
+- Help NGOs find available food donations nearby
+- Explain how ResQPlate works (listing food, claiming donations, logistics)
+- Answer questions about food safety, storage, and handling
+- Provide eco-conscious advice on reducing food waste
+
+Tone: Warm, concise, professional. Use short paragraphs. Never use bullet lists with more than 4 items. If a question is outside food rescue, politely redirect to ResQPlate topics.`;
 
 const QUICK_REPLIES = [
   { label: "How do I donate food?", emoji: "🍱" },
@@ -21,6 +30,21 @@ const QUICK_REPLIES = [
   { label: "Food safety tips", emoji: "🛡️" },
   { label: "Track my donation", emoji: "📦" },
 ];
+
+let groqClient = null;
+try {
+  const key = import.meta.env.VITE_GROQ_API_KEY;
+  if (key) {
+    groqClient = new Groq({
+      apiKey: key,
+      dangerouslyAllowBrowser: true,
+    });
+  }
+} catch (e) {
+  console.error("Groq init failed:", e);
+}
+
+const FALLBACK_MESSAGE = "ResQBot is currently tending to the garden, but I will be back soon! 🌿";
 
 function formatTime(ts) {
   return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -180,7 +204,7 @@ function BotAvatar({ size = 28, pulse = false, borderColor = "#0a0d11" }) {
 
 function TypingDots({ color }) {
   return (
-    <div style={{ display: "flex", padding: "4px 2px", alignItems: "center", gap: 5 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 2px" }}>
       {[0, 1, 2].map((i) => (
         <motion.span
           key={i}
@@ -230,7 +254,7 @@ function MessageBubble({ msg, t }) {
           display: "flex",
           flexDirection: "column",
           gap: 4,
-          maxWidth: "76%",
+          maxWidth: "80%",
           alignItems: isUser ? "flex-end" : "flex-start",
         }}
       >
@@ -362,9 +386,6 @@ function ActionBtn({ onClick, disabled, active, children, t, title }) {
 }
 
 export default function ResQBot() {
-  const authContext = useAuth();
-  const user = authContext?.user || null;
-
   const [isDark, setIsDark] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -380,7 +401,7 @@ export default function ResQBot() {
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const inputRef = useRef(null);
-  
+  const chatHistoryRef = useRef([]);
   const t = isDark ? themes.dark : themes.light;
 
   useEffect(() => {
@@ -393,13 +414,11 @@ export default function ResQBot() {
     if (isOpen) {
       setIsMinimized(false);
       setHasUnread(false);
-      const name = user?.name?.split(" ")[0];
-      const greeting = name
-        ? `Hey **${name}**! 👋 I'm **ResQBot** — your AI-powered food rescue assistant. I can help you donate surplus food, connect with NGOs, and fight food waste. What can I help you with today?`
-        : "Hey there! 👋 I'm **ResQBot** — your AI-powered food rescue assistant. I can help you donate surplus food, connect with NGOs, and fight food waste. What can I help you with?";
+      chatHistoryRef.current = [];
+      const greeting = "Hey there! 👋 I'm **ResQBot** — your AI-powered food rescue assistant. I can help you donate surplus food, connect with NGOs, and fight food waste. What can I help you with today?";
       setMessages([{ id: Date.now(), text: greeting, sender: "bot" }]);
     }
-  }, [isOpen, user]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && !isMinimized) {
@@ -419,48 +438,70 @@ export default function ResQBot() {
         sender: "user",
         imagePreview: imagePreview,
       };
-
-      const updatedMessages = [...messages, userMsg];
-      setMessages(updatedMessages);
+      setMessages((prev) => [...prev, userMsg]);
       setInputValue("");
-      
+      const capturedImage = imageBase64;
       setImageBase64(null);
       setImagePreview(null);
       setIsTyping(true);
 
-      try {
-        const groqFormattedMessages = updatedMessages.map(msg => ({
-          role: msg.sender === "user" ? "user" : "assistant",
-          content: msg.text
-        }));
+      let parts = [];
+      if (capturedImage) {
+        setIsAnalyzingImage(true);
+        const base64Data = capturedImage.replace(/^data:.+;base64,/, "");
+        const prompt = messageText
+          ? messageText
+          : "Please identify this food item. List its main ingredients, estimated shelf life (room temp vs refrigerated), storage tips, and any food safety warnings. Use emojis 🍎";
+        parts = [
+          { text: prompt },
+          { inlineData: { data: base64Data, mimeType: "image/jpeg" } },
+        ];
+      } else {
+        parts = [{ text: messageText }];
+      }
 
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ messages: groqFormattedMessages }),
+      chatHistoryRef.current.push({ role: "user", parts });
+
+      try {
+        if (!groqClient) throw new Error("Groq client not initialized");
+
+        const messages = [{ role: "system", content: SYSTEM_INSTRUCTION }];
+
+        chatHistoryRef.current.forEach(entry => {
+          const text = entry.parts.map(p => p.text).filter(Boolean).join(" ");
+          if (!text) return;
+          if (entry.role === "user") {
+            messages.push({ role: "user", content: text });
+          } else if (entry.role === "model") {
+            messages.push({ role: "assistant", content: text });
+          }
         });
 
-        if (!response.ok) {
-          throw new Error("API Route Failure");
-        }
+        const response = await groqClient.chat.completions.create({
+          model: "llama-3.1-8b-instant",
+          messages,
+          temperature: 0.7,
+          max_tokens: 200,
+        });
 
-        const data = await response.json();
-        const responseText = data.content || FALLBACK_MESSAGE;
+        const responseText = response.choices[0].message.content.trim();
 
+        chatHistoryRef.current.push({ role: "model", parts: [{ text: responseText }] });
         setMessages((prev) => [...prev, { id: Date.now() + 1, text: responseText, sender: "bot" }]);
 
         if (!isOpen || isMinimized) setHasUnread(true);
       } catch (error) {
-        console.error("Secure Server Proxy Error:", error);
-        setMessages((prev) => [...prev, { id: Date.now() + 1, text: FALLBACK_MESSAGE, sender: "bot" }]);
+        console.error("Groq error:", error);
+        chatHistoryRef.current.pop();
+
+        const errText = FALLBACK_MESSAGE;
+        setMessages((prev) => [...prev, { id: Date.now() + 1, text: errText, sender: "bot" }]);
       } finally {
         setIsTyping(false);
         setIsAnalyzingImage(false);
       }
     },
-    [inputValue, isTyping, isAnalyzingImage, isOpen, isMinimized, imageBase64, imagePreview, messages]
+    [inputValue, isTyping, isAnalyzingImage, isOpen, isMinimized, imageBase64, imagePreview]
   );
 
   const handleKeyDown = (e) => {
@@ -483,12 +524,10 @@ export default function ResQBot() {
   };
 
   const handleReset = () => {
+    chatHistoryRef.current = [];
     setImageBase64(null);
     setImagePreview(null);
-    const name = user?.name?.split(" ")[0];
-    const greeting = name
-      ? `Chat cleared! Hello again **${name}** 👋 How can I help?`
-      : "Chat cleared! How can I help you? 👋";
+    const greeting = "Chat cleared! How can I help you? 👋";
     setMessages([{ id: Date.now(), text: greeting, sender: "bot" }]);
   };
 
@@ -547,6 +586,7 @@ export default function ResQBot() {
         }
       `}</style>
 
+      {/* Chat Window */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -557,10 +597,12 @@ export default function ResQBot() {
             className="resqbot-wrap"
             style={{
               position: "fixed",
-              bottom: 20,
+              bottom: 96, /* 🔴 FIXED: Increased from 20 to 96 to hover cleanly over the FAB button */
               right: 20,
-              width: 370,
-              maxWidth: "calc(100vw - 40px)",
+              width: 380, /* Slighly wider */
+              maxHeight: "calc(100vh - 120px)", /* Prevent it from extending off the top of small screens */
+              display: "flex",
+              flexDirection: "column",
               background: isDark ? "rgba(15,17,23,0.85)" : "rgba(255,255,255,0.90)",
               backdropFilter: "blur(20px)",
               WebkitBackdropFilter: "blur(20px)",
@@ -571,6 +613,7 @@ export default function ResQBot() {
               border: `1px solid ${t.windowBorder}`,
             }}
           >
+            {/* Header */}
             <div
               style={{
                 background: t.headerBg,
@@ -580,6 +623,7 @@ export default function ResQBot() {
                 justifyContent: "space-between",
                 position: "relative",
                 borderBottom: `1px solid ${t.headerBorder}`,
+                flexShrink: 0,
               }}
             >
               <div className="resqbot-header-glow" />
@@ -640,6 +684,7 @@ export default function ResQBot() {
               </div>
             </div>
 
+            {/* Body */}
             <AnimatePresence initial={false}>
               {!isMinimized && (
                 <motion.div
@@ -648,11 +693,23 @@ export default function ResQBot() {
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.22, ease: "easeInOut" }}
-                  style={{ overflow: "hidden" }}
+                  style={{ 
+                    overflow: "hidden",
+                    display: "flex", 
+                    flexDirection: "column",
+                    flex: 1
+                  }}
                 >
+                  {/* Messages */}
                   <div
                     ref={messagesContainerRef}
-                    style={{ position: "relative", height: 350, overflowY: "auto", background: t.msgAreaBg }}
+                    style={{ 
+                      position: "relative", 
+                      height: 380, /* 🔴 FIXED: Reduced slightly and made responsive */
+                      maxHeight: "50vh",
+                      overflowY: "auto", 
+                      background: t.msgAreaBg 
+                    }}
                     className="resqbot-scrollbar"
                   >
                     <div
@@ -689,6 +746,9 @@ export default function ResQBot() {
                           }}>
                             <TypingDots color={t.typingDotColor} />
                           </div>
+                          <span style={{ fontSize: 10, color: t.timestampColor, marginBottom: 4 }}>
+                            "ResQBot is thinking... 🌱"
+                          </span>
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -697,6 +757,7 @@ export default function ResQBot() {
                     </div>
                   </div>
 
+                  {/* Quick Replies */}
                   <AnimatePresence>
                     {messages.length <= 1 && !isTyping && (
                       <motion.div
@@ -705,12 +766,13 @@ export default function ResQBot() {
                         exit={{ opacity: 0 }}
                         transition={{ delay: 0.3 }}
                         style={{
-                          padding: "10px 14px",
+                          padding: "12px 14px",
                           display: "flex",
                           gap: 6,
                           flexWrap: "wrap",
                           borderTop: `1px solid ${t.inputAreaBorder}`,
                           background: t.msgAreaBg,
+                          flexShrink: 0
                         }}
                       >
                         {QUICK_REPLIES.map(({ label, emoji }) => (
@@ -721,7 +783,7 @@ export default function ResQBot() {
                             style={{
                               fontSize: 11.5,
                               fontWeight: 500,
-                              padding: "5px 10px",
+                              padding: "6px 10px",
                               borderRadius: 20,
                               border: `1px solid ${t.quickBorder}`,
                               background: t.quickBg,
@@ -746,56 +808,62 @@ export default function ResQBot() {
                     )}
                   </AnimatePresence>
 
-                  {imagePreview && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "8px 14px",
-                        background: t.imgPreviewBg,
-                        borderTop: `1px solid ${t.imgPreviewBorder}`,
-                      }}
-                    >
-                      <img
-                        src={imagePreview}
-                        alt="preview"
-                        style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8 }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11.5, color: t.botBubbleText, fontWeight: 500 }}>
-                          📷 Food image ready to analyze
-                        </div>
-                        <div style={{ fontSize: 10.5, color: t.inputPlaceholder, marginTop: 1 }}>
-                          Add a message or send to analyze
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => { setImageBase64(null); setImagePreview(null); }}
+                  {/* Image Preview */}
+                  <AnimatePresence>
+                    {imagePreview && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
                         style={{
-                          background: "none",
-                          border: "none",
-                          color: t.imgRemoveText,
-                          cursor: "pointer",
-                          fontSize: 20,
-                          lineHeight: 1,
-                          padding: 4,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          padding: "8px 14px",
+                          background: t.imgPreviewBg,
+                          borderTop: `1px solid ${t.imgPreviewBorder}`,
+                          flexShrink: 0
                         }}
                       >
-                        ×
-                      </button>
-                    </motion.div>
-                  )}
+                        <img
+                          src={imagePreview}
+                          alt="preview"
+                          style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8 }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 11.5, color: t.botBubbleText, fontWeight: 500 }}>
+                            📷 Food image ready to analyze
+                          </div>
+                          <div style={{ fontSize: 10.5, color: t.inputPlaceholder, marginTop: 1 }}>
+                            Add a message or send to analyze
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => { setImageBase64(null); setImagePreview(null); }}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: t.imgRemoveText,
+                            cursor: "pointer",
+                            fontSize: 20,
+                            lineHeight: 1,
+                            padding: 4,
+                          }}
+                        >
+                          ×
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
+                  {/* Input */}
                   <div
                     style={{
-                      padding: "10px 12px",
+                      padding: "12px 14px",
                       background: t.inputAreaBg,
                       borderTop: `1px solid ${inputFocused ? t.inputBorderFocus : t.inputAreaBorder}`,
                       transition: "border-color 0.15s",
+                      flexShrink: 0
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -806,7 +874,7 @@ export default function ResQBot() {
                         onChange={handleImageChange}
                         style={{ display: "none" }}
                       />
-                      <div style={{ flex: 1, position: "relative" }}>
+                      <div style={{ flex: 1, position: "relative", minWidth: 0 }}> {/* 🔴 FIXED: minWidth: 0 prevents textarea from stretching its wrapper */}
                         <textarea
                           ref={inputRef}
                           value={inputValue}
@@ -830,7 +898,7 @@ export default function ResQBot() {
                             background: t.inputBg,
                             color: t.inputText,
                             fontSize: 13.5,
-                            padding: "9px 14px",
+                            padding: "10px 14px",
                             maxHeight: 96,
                             lineHeight: 1.5,
                             boxSizing: "border-box",
@@ -866,13 +934,15 @@ export default function ResQBot() {
                     </div>
                   </div>
 
+                  {/* Footer */}
                   <div style={{
-                    padding: "4px 0 10px",
+                    padding: "4px 0 14px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     gap: 5,
                     background: t.inputAreaBg,
+                    flexShrink: 0
                   }}>
                     <span style={{ fontSize: 14 }}>🌿</span>
                     <span style={{ fontSize: 10, color: t.footerText, fontFamily: "Inter, sans-serif" }}>
@@ -886,6 +956,7 @@ export default function ResQBot() {
         )}
       </AnimatePresence>
 
+      {/* FAB */}
       <motion.button
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.88 }}
@@ -910,7 +981,7 @@ export default function ResQBot() {
           overflow: "visible",
         }}
       >
-        {!isOpen && <div className="resqfab-ring" />}
+        {!isOpen && <div className="resqbot-fab-ring" />}
 
         <AnimatePresence mode="wait">
           {isOpen && !isMinimized ? (

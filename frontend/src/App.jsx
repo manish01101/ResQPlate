@@ -12,8 +12,7 @@ import FindFoodPage from "./pages/FindFoodPage";
 import DonatePage from "./pages/DonatePage";
 import MyClaimsPage from "./pages/MyClaimsPage";
 import AdminPage from "./pages/AdminPage";
-
-import ResQBot from "./components/ResQPlateAssistant";
+import ResQBot from "./components/ResQBot"; 
 
 function PrivateRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -36,7 +35,8 @@ function AppRoutes() {
   const { user } = useAuth();
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-gray-50 dark:bg-slate-950 relative">
+    <div className="flex flex-col min-h-screen w-full bg-gray-50 dark:bg-slate-950">
+      {/* Navbar is always visible now */}
       <Navbar />
 
       <main className="flex-grow w-full flex flex-col">
@@ -108,7 +108,9 @@ function AppRoutes() {
           />
         </Routes>
       </main>
+
       <ResQBot />
+      
     </div>
   );
 }
