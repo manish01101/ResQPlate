@@ -12,6 +12,7 @@ import FindFoodPage from "./pages/FindFoodPage";
 import DonatePage from "./pages/DonatePage";
 import MyClaimsPage from "./pages/MyClaimsPage";
 import AdminPage from "./pages/AdminPage";
+import ResQBot from "./components/ResQBot"; 
 
 function PrivateRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -107,6 +108,9 @@ function AppRoutes() {
           />
         </Routes>
       </main>
+
+      <ResQBot />
+      
     </div>
   );
 }
