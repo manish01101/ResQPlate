@@ -69,3 +69,12 @@ html.dark body {
 #root {
   min-height: 100vh;
 }
+
+.leaflet-routing-container {
+  display: none !important;
+}
+
+/* Make the vehicle marker slide smoothly instead of teleporting */
+.moving-vehicle {
+  transition: transform 1s linear !important;
+}

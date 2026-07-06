@@ -2,6 +2,8 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const cron = require("node-cron");
+const http = require("http");
+const { Server } = require("socket.io");
 require("dotenv").config();
 
 const app = express();
@@ -23,6 +25,33 @@ app.use("/api/donations", require("./routes/donations"));
 app.use("/api/claims", require("./routes/claims"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/admin", require("./routes/admin"));
+
+// ==========================================
+// WebSockets for Real-Time Tracking
+// ==========================================
+const server = http.createServer(app);
+const io = new Server(server, { cors: corsOptions });
+
+io.on("connection", (socket) => {
+  console.log("User connected to socket:", socket.id);
+
+  // Join a room unique to the specific Claim ID
+  socket.on("joinPickup", (claimId) => {
+    socket.join(claimId);
+    console.log(`Socket ${socket.id} joined pickup room: ${claimId}`);
+  });
+
+  // NGO emits this when they move. We broadcast it to the Donor.
+  socket.on("updateLocation", (data) => {
+    // data contains { claimId, coords: { lat, lng } }
+    socket.to(data.claimId).emit("ngoLocationMoved", data.coords);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+});
+// ==========================================
 
 // Health check
 app.get("/", (req, res) =>
@@ -51,4 +80,6 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`ResQPlate server running on port ${PORT}`));
+server.listen(PORT, () =>
+  console.log(`ResQPlate server running on port ${PORT}`),
+);

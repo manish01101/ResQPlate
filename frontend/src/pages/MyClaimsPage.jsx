@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
+import ActivePickupMap from "../components/ActivePickupMap";
 
 export default function MyClaimsPage() {
   const { user } = useAuth();
@@ -9,6 +10,7 @@ export default function MyClaimsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [donorTab, setDonorTab] = useState("requests"); // 'requests' | 'listings'
+  const [activePickup, setActivePickup] = useState(null);
 
   useEffect(() => {
     fetchAllData();
@@ -182,13 +184,36 @@ export default function MyClaimsPage() {
                     )}
 
                     {/* NGO ACTIONS */}
-                    {user?.role === "ngo" && claim.status === "accepted" && (
+                    {/* ================= LIVE TRACKING BUTTONS ================= */}
+                    {claim.status === "accepted" && (
                       <button
-                        onClick={() => handleClaimAction(claim._id, "complete")}
-                        className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition shadow-sm"
+                        onClick={() => setActivePickup(claim)}
+                        className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition shadow-sm"
                       >
-                        ✅ Mark as Picked Up
+                        📍 Live Track Pickup
                       </button>
+                    )}
+
+                    {user?.role === "ngo" && claim.status === "accepted" && (
+                      <div className="flex gap-2">
+                        {/* <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${claim.donation_id.location.coordinates[1]},${claim.donation_id.location.coordinates[0]}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition shadow-sm flex items-center gap-1"
+                        >
+                          📍 Navigate
+                        </a> */}
+
+                        <button
+                          onClick={() =>
+                            handleClaimAction(claim._id, "complete")
+                          }
+                          className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition shadow-sm"
+                        >
+                          ✅ Mark Picked Up
+                        </button>
+                      </div>
                     )}
                     {user?.role === "ngo" &&
                       (claim.status === "pending" ||
@@ -256,6 +281,13 @@ export default function MyClaimsPage() {
             </div>
           )}
         </>
+      )}
+      {activePickup && (
+        <ActivePickupMap
+          claim={activePickup}
+          userRole={user.role}
+          onClose={() => setActivePickup(null)}
+        />
       )}
     </div>
   );
