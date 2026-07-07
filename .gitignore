@@ -1,6 +1,6 @@
 .env
 .env.local
-# seeds.js
+seeds.js
 
 node_modules/
 .DS_Store      
