@@ -79,6 +79,10 @@ router.put(
           .json({ success: false, message: "Not your donation" });
       }
 
+      //  Generate a random 4-digit PIN
+      const generatedPin = Math.floor(1000 + Math.random() * 9000).toString();
+      claim.pickup_pin = generatedPin;
+
       claim.status = "accepted";
       claim.acceptedAt = new Date();
       await claim.save();
@@ -105,6 +109,18 @@ router.put("/:id/complete", protect, async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Claim not found" });
+
+    // Verify the PIN provided by the NGO
+    const { pin } = req.body;
+    const expectedPin = String(claim.pickup_pin).trim();
+    const receivedPin = String(pin).trim();
+
+    if (expectedPin !== receivedPin) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Pickup PIN. Please check with the donor.",
+      });
+    }
 
     claim.status = "completed";
     claim.completedAt = new Date();

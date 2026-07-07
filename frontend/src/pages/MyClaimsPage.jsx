@@ -11,6 +11,7 @@ export default function MyClaimsPage() {
   const [error, setError] = useState("");
   const [donorTab, setDonorTab] = useState("requests"); // 'requests' | 'listings'
   const [activePickup, setActivePickup] = useState(null);
+  const [pinInputs, setPinInputs] = useState({});
 
   useEffect(() => {
     fetchAllData();
@@ -35,12 +36,19 @@ export default function MyClaimsPage() {
     }
   };
 
-  const handleClaimAction = async (claimId, action) => {
+  const handleClaimAction = async (claimId, action, payload = {}) => {
     try {
-      await api.put(`/claims/${claimId}/${action}`);
+      await api.put(`/claims/${claimId}/${action}`, payload);
       fetchAllData(); // Refresh data
     } catch (err) {
-      alert("Action failed. Please try again.");
+      alert(err.response?.data?.message || "Action failed. Please try again.");
+    }
+  };
+
+  const handlePinChange = (claimId, value) => {
+    // Only allow numbers and max 4 digits
+    if (/^\d{0,4}$/.test(value)) {
+      setPinInputs((prev) => ({ ...prev, [claimId]: value }));
     }
   };
 
@@ -132,6 +140,7 @@ export default function MyClaimsPage() {
                   key={claim._id}
                   className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
                 >
+                  {/* Left Side: Details & OTP Display for Donor */}
                   <div>
                     <h3 className="text-lg font-bold text-gray-900">
                       {claim.donation_id?.food_title || "Unknown food"}
@@ -150,22 +159,35 @@ export default function MyClaimsPage() {
                         </span>
                       )}
                     </p>
-                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-400 dark:text-slate-500">
-                      <span>
-                        Requested:{" "}
-                        {new Date(claim.requestedAt).toLocaleString()}
-                      </span>
+
+                    {/* Donor sees the OTP */}
+                    {user?.role === "donor" &&
+                      claim.status === "accepted" &&
+                      claim.pickup_pin && (
+                        <div className="mt-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg inline-block">
+                          <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide mb-1">
+                            Share this PIN with the Volunteer
+                          </p>
+                          <p className="text-3xl font-black text-emerald-600 tracking-[0.25em]">
+                            {claim.pickup_pin}
+                          </p>
+                        </div>
+                      )}
+
+                    <div className="mt-2 text-xs text-gray-400 dark:text-slate-500">
+                      Requested: {new Date(claim.requestedAt).toLocaleString()}
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                  {/* Right Side: Actions & OTP Input for NGO */}
+                  <div className="flex flex-col items-end gap-3 w-full md:w-auto">
                     <span
                       className={`px-3 py-1 text-xs font-bold uppercase rounded-full border ${getStatusColor(claim.status)}`}
                     >
                       {claim.status}
                     </span>
 
-                    {/* DONOR ACTIONS */}
+                    {/* Donor Actions (Pending) */}
                     {user?.role === "donor" && claim.status === "pending" && (
                       <div className="flex gap-2">
                         <button
@@ -183,44 +205,52 @@ export default function MyClaimsPage() {
                       </div>
                     )}
 
-                    {/* NGO ACTIONS */}
-                    {/* ================= LIVE TRACKING BUTTONS ================= */}
+                    {/* NGO/Donor Live Track Button */}
                     {claim.status === "accepted" && (
                       <button
                         onClick={() => setActivePickup(claim)}
-                        className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition shadow-sm"
+                        className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition shadow-sm w-full md:w-auto"
                       >
                         📍 Live Track Pickup
                       </button>
                     )}
 
+                    {/* NGO OTP Input (Accepted) */}
                     {user?.role === "ngo" && claim.status === "accepted" && (
-                      <div className="flex gap-2">
-                        {/* <a
-                          href={`https://www.google.com/maps/dir/?api=1&destination=${claim.donation_id.location.coordinates[1]},${claim.donation_id.location.coordinates[0]}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition shadow-sm flex items-center gap-1"
-                        >
-                          📍 Navigate
-                        </a> */}
-
+                      <div className="flex gap-2 items-stretch mt-1">
+                        <input
+                          type="text"
+                          placeholder="4-Digit PIN"
+                          value={pinInputs[claim._id] || ""}
+                          onChange={(e) =>
+                            handlePinChange(claim._id, e.target.value)
+                          }
+                          className="w-28 text-center font-mono font-bold text-sm border border-gray-300 dark:border-slate-700 rounded-lg bg-gray-50 dark:bg-slate-800 focus:ring-emerald-500 focus:border-emerald-500 dark:text-white"
+                        />
                         <button
                           onClick={() =>
-                            handleClaimAction(claim._id, "complete")
+                            handleClaimAction(claim._id, "complete", {
+                              pin: pinInputs[claim._id],
+                            })
                           }
-                          className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition shadow-sm"
+                          disabled={
+                            !pinInputs[claim._id] ||
+                            pinInputs[claim._id].length !== 4
+                          }
+                          className="px-4 py-2 bg-emerald-600 disabled:bg-emerald-300 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition shadow-sm"
                         >
-                          ✅ Mark Picked Up
+                          Verify & Complete
                         </button>
                       </div>
                     )}
+
+                    {/* NGO Cancel Button */}
                     {user?.role === "ngo" &&
                       (claim.status === "pending" ||
                         claim.status === "accepted") && (
                         <button
                           onClick={() => handleClaimAction(claim._id, "cancel")}
-                          className="px-4 py-2 bg-white border border-red-300 text-red-600 text-sm font-bold rounded-lg hover:bg-red-50 transition"
+                          className="px-4 py-2 bg-white border border-red-300 text-red-600 text-sm font-bold rounded-lg hover:bg-red-50 transition w-full md:w-auto"
                         >
                           Cancel Request
                         </button>
@@ -233,9 +263,7 @@ export default function MyClaimsPage() {
         </>
       )}
 
-      {/* ========================================== */}
       {/* VIEW: DONOR LISTINGS */}
-      {/* ========================================== */}
       {user?.role === "donor" && donorTab === "listings" && (
         <>
           {myDonations.length === 0 ? (
@@ -259,14 +287,12 @@ export default function MyClaimsPage() {
                       {new Date(donation.expiry_datetime).toLocaleString()}
                     </p>
                   </div>
-
                   <div className="flex flex-col sm:flex-row items-center gap-3">
                     <span
                       className={`px-3 py-1 text-xs font-bold uppercase rounded-full border ${getStatusColor(donation.status)}`}
                     >
                       {donation.status}
                     </span>
-
                     {donation.status === "available" && (
                       <button
                         onClick={() => handleDeleteDonation(donation._id)}
@@ -282,6 +308,7 @@ export default function MyClaimsPage() {
           )}
         </>
       )}
+
       {activePickup && (
         <ActivePickupMap
           claim={activePickup}

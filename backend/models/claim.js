@@ -16,6 +16,10 @@ const ClaimSchema = new mongoose.Schema({
     enum: ['pending', 'accepted', 'completed', 'cancelled'],
     default: 'pending'
   },
+  pickup_pin: {
+    type: String, 
+    default: null
+  },
   requestedAt: {
     type: Date,
     default: Date.now
