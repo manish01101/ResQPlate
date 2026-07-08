@@ -100,4 +100,22 @@ router.get("/donations", async (req, res) => {
   }
 });
 
+// ==========================================
+// NEW: Fetch all global claims for Admin
+// ==========================================
+// @route  GET /api/admin/claims
+// @desc   All claims/requests (any status)
+router.get("/claims", async (req, res) => {
+  try {
+    const claims = await Claim.find()
+      .populate("donation_id", "food_title donor_id quantity location")
+      .populate("receiver_id", "name email phone")
+      .sort("-createdAt")
+      .limit(200);
+    res.json({ success: true, count: claims.length, data: claims });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

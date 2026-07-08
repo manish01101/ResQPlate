@@ -40,7 +40,7 @@ router.get("/", protect, async (req, res) => {
 // @route  GET /api/donations/my
 // @desc   Get logged-in donor's donations
 // @access Private (donor)
-router.get("/my", protect, authorize("donor", "admin"), async (req, res) => {
+router.get("/my", protect, authorize("donor"), async (req, res) => {
   try {
     const donations = await Donation.find({ donor_id: req.user._id })
       .populate("claimed_by", "name phone")
@@ -70,7 +70,7 @@ router.get("/:id", protect, async (req, res) => {
 
 // @route  POST /api/donations
 // @access Private (donors only)
-router.post("/", protect, authorize("donor", "admin"), async (req, res) => {
+router.post("/", protect, authorize("donor"), async (req, res) => {
   try {
     const {
       food_title,

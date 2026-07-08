@@ -9,7 +9,7 @@ const { haversineDistance } = require("../utils/algorithms");
 // @route  POST /api/claims
 // @desc   NGO/Volunteer claims a donation
 // @access Private (ngo)
-router.post("/", protect, authorize("ngo", "admin"), async (req, res) => {
+router.post("/", protect, authorize("ngo"), async (req, res) => {
   try {
     const { donation_id } = req.body;
 
@@ -65,39 +65,32 @@ router.post("/", protect, authorize("ngo", "admin"), async (req, res) => {
 // @desc   Donor accepts the claim
 // @access Private (donor)
 // PUT /api/claims/:id/accept
-router.put(
-  "/:id/accept",
-  protect,
-  authorize("donor", "admin"),
-  async (req, res) => {
-    try {
-      const claim = await Claim.findById(req.params.id).populate("donation_id");
-      // Ensure the donor approving is the owner of the donation
-      if (claim.donation_id.donor_id.toString() !== req.user._id.toString()) {
-        return res
-          .status(403)
-          .json({ success: false, message: "Not your donation" });
-      }
-
-      //  Generate a random 4-digit PIN
-      const generatedPin = Math.floor(1000 + Math.random() * 9000).toString();
-      claim.pickup_pin = generatedPin;
-
-      claim.status = "accepted";
-      claim.acceptedAt = new Date();
-      await claim.save();
-
-      // Lock the donation so no one else can claim it
-      await Donation.findByIdAndUpdate(claim.donation_id, {
-        status: "claimed",
-      });
-
-      res.json({ success: true, data: claim });
-    } catch (err) {
-      res.status(500).json({ success: false, message: err.message });
+router.put("/:id/accept", protect, authorize("donor"), async (req, res) => {
+  try {
+    const claim = await Claim.findById(req.params.id).populate("donation_id");
+    if (claim.donation_id.donor_id.toString() !== req.user._id.toString()) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Not your donation" });
     }
-  },
-);
+
+    // Generate a random 4-digit PIN
+    const generatedPin = Math.floor(1000 + Math.random() * 9000).toString();
+    claim.pickup_pin = generatedPin;
+
+    claim.status = "accepted";
+    claim.acceptedAt = new Date();
+    await claim.save();
+
+    await Donation.findByIdAndUpdate(claim.donation_id, {
+      status: "claimed",
+    });
+
+    res.json({ success: true, data: claim });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // @route  PUT /api/claims/:id/complete
 // @desc   Mark pickup as physically completed
@@ -125,6 +118,10 @@ router.put("/:id/complete", protect, async (req, res) => {
     claim.status = "completed";
     claim.completedAt = new Date();
     await claim.save();
+
+    await Donation.findByIdAndUpdate(claim.donation_id, {
+      status: "completed",
+    });
 
     // Update volunteer reliability score
     const volunteer = await User.findById(claim.receiver_id);
@@ -184,18 +181,28 @@ router.put("/:id/cancel", protect, async (req, res) => {
 });
 
 // @route  GET /api/claims/my
-// @desc   Get claims for logged-in user
+// @desc   Get claims for logged-in user (Personal Requests/Claims)
 // @access Private
 router.get("/my", protect, async (req, res) => {
   try {
-    const filter =
-      req.user.role === "donor"
-        ? { "donation_id.donor_id": req.user._id }
-        : { receiver_id: req.user._id };
+    let query = {};
 
-    const claims = await Claim.find(
-      req.user.role === "ngo" ? { receiver_id: req.user._id } : {},
-    )
+    if (req.user.role === "ngo") {
+      // NGOs only see the claims they have made
+      query = { receiver_id: req.user._id };
+    } else {
+      // Donors AND Admins see incoming requests for THEIR specific donations
+      // 1. First, find all donations posted by this specific user
+      const myDonations = await Donation.find({
+        donor_id: req.user._id,
+      }).select("_id");
+      const myDonationIds = myDonations.map((d) => d._id);
+
+      // 2. Then, find claims that are attached to those donations
+      query = { donation_id: { $in: myDonationIds } };
+    }
+
+    const claims = await Claim.find(query)
       .populate("donation_id", "food_title quantity location expiry_datetime")
       .populate("receiver_id", "name phone")
       .sort("-requestedAt")
