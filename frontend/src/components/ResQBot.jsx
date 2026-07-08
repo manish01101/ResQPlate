@@ -57,7 +57,10 @@ function parseMarkdown(text) {
   return text
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.*?)\*/g, "<em>$1</em>")
-    .replace(/`(.*?)`/g, "<code class='bg-gray-100 dark:bg-gray-800 px-1 rounded'>$1</code>")
+    .replace(
+      /`(.*?)`/g,
+      "<code class='bg-gray-100 dark:bg-gray-800 px-1 rounded'>$1</code>",
+    )
     .replace(/\n/g, "<br/>");
 }
 
@@ -108,10 +111,10 @@ const ActionBtn = ({ onClick, disabled, active, title, children }) => (
     whileTap={!disabled ? { scale: 0.9 } : {}}
     className={`w-9 h-9 flex shrink-0 items-center justify-center rounded-xl transition-all ${
       disabled
-        ? "opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400"
+        ? "opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
         : active
           ? "bg-gradient-to-br from-emerald-600 to-emerald-700 text-white shadow-md hover:-translate-y-px shadow-emerald-600/30"
-          : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
     }`}
   >
     {children}
@@ -423,7 +426,7 @@ export default function ResQBot() {
                           setImageBase64(null);
                           setImagePreview(null);
                         }}
-                        className="text-gray-400 hover:text-red-500 p-1"
+                        className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-1"
                       >
                         <HiOutlineXMark size={16} />
                       </button>

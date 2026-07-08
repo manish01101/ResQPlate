@@ -25,7 +25,12 @@ function MapBoundsFitter({ pos1, pos2 }) {
   useEffect(() => {
     if (pos1 && pos2) {
       const bounds = L.latLngBounds([pos1.lat, pos1.lng], [pos2.lat, pos2.lng]);
-      map.fitBounds(bounds, { padding: [60, 60], animate: true });
+      // Slightly different padding for mobile vs desktop for better framing
+      const isMobile = window.innerWidth < 640;
+      map.fitBounds(bounds, {
+        padding: isMobile ? [40, 40] : [60, 60],
+        animate: true,
+      });
     }
   }, [map, pos1, pos2]);
   return null;
@@ -70,47 +75,49 @@ export default function ActivePickupMap({ claim, userRole, onClose }) {
   }, [claim._id, userRole]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl flex flex-col h-[85vh] relative">
+    // Outer wrapper: Full screen transparent on desktop, solid on mobile
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center sm:bg-black/60 sm:p-4 sm:backdrop-blur-sm">
+      {/* Inner Container: Full screen on mobile, rounded modal on desktop */}
+      <div className="w-full h-[100dvh] sm:h-[85vh] sm:max-w-4xl bg-white dark:bg-slate-900 sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col relative">
         {/* HEADER */}
-        <div className="p-5 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900 z-10 shadow-sm">
+        <div className="p-4 sm:p-5 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900 z-10 shadow-sm flex-shrink-0">
           <div>
-            <h2 className="text-2xl font-black text-gray-900 dark:text-white">
+            <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white leading-tight">
               {userRole === "ngo"
                 ? "Navigate to Pickup"
                 : "Volunteer Approaching"}
             </h2>
-            <p className="text-sm font-medium text-gray-500 mt-1">
+            <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-slate-300 mt-1">
               Food:{" "}
-              <span className="text-emerald-600">
+              <span className="text-emerald-600 font-bold">
                 {claim.donation_id.food_title}
               </span>
             </p>
           </div>
           <button
             onClick={onClose}
-            className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl font-bold text-gray-700 dark:text-gray-200 transition-colors"
+            className="px-4 py-2 sm:px-5 sm:py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl font-bold text-gray-700 dark:text-gray-200 transition-colors text-sm sm:text-base flex-shrink-0"
           >
-            Close
+            ✕ <span className="hidden sm:inline ml-1">Close</span>
           </button>
         </div>
-
-        {/* MAP */}
+        {/* MAP AREA */}
         <div className="flex-grow w-full relative z-0">
-          {/* Show a waiting message to the Donor until NGO connects */}
+          {/* Waiting Message for Donor */}
           {userRole === "donor" && !ngoLocation && (
-            <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-[1000] bg-amber-50 border border-amber-200 shadow-xl px-5 py-3 rounded-2xl flex items-center gap-3 w-[90%] max-w-sm">
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-amber-50 border border-amber-200 shadow-lg px-4 py-3 rounded-2xl flex items-center gap-3 w-[90%] max-w-sm">
               <div className="animate-spin h-5 w-5 border-2 border-amber-600 border-t-transparent rounded-full flex-shrink-0"></div>
               <div>
                 <p className="text-sm font-bold text-amber-900 leading-tight">
                   Waiting for Volunteer...
                 </p>
-                <p className="text-xs text-amber-700 mt-0.5">
+                <p className="text-[10px] sm:text-xs text-amber-700 mt-0.5">
                   They haven't started sharing their live location yet.
                 </p>
               </div>
             </div>
           )}
+
           <MapContainer
             center={[donorCoords.lat, donorCoords.lng]}
             zoom={15}
@@ -118,6 +125,38 @@ export default function ActivePickupMap({ claim, userRole, onClose }) {
             zoomControl={false}
           >
             <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
+
+            {/* Bottom Right Zoom Control (Adjusted for mobile) */}
+            <div className="leaflet-bottom leaflet-right mb-24 sm:mb-6 mr-2">
+              <div className="leaflet-control-zoom leaflet-bar leaflet-control">
+                <a
+                  className="leaflet-control-zoom-in"
+                  href="#"
+                  title="Zoom in"
+                  role="button"
+                  aria-label="Zoom in"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    mapRef.current?.zoomIn();
+                  }}
+                >
+                  +
+                </a>
+                <a
+                  className="leaflet-control-zoom-out"
+                  href="#"
+                  title="Zoom out"
+                  role="button"
+                  aria-label="Zoom out"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    mapRef.current?.zoomOut();
+                  }}
+                >
+                  −
+                </a>
+              </div>
+            </div>
 
             {ngoLocation && (
               <>
@@ -147,24 +186,28 @@ export default function ActivePickupMap({ claim, userRole, onClose }) {
             )}
           </MapContainer>
 
-          {/* FLOATING ETA CARD */}
+          {/* FLOATING ETA CARD (Responsive positioned at the bottom) */}
           {ngoLocation && (
-            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-[1000] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-gray-200 dark:border-slate-700 shadow-2xl px-6 py-4 rounded-2xl flex items-center gap-6 min-w-[280px]">
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+            <div className="absolute bottom-6 left-4 right-4 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 z-[1000] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-gray-200 dark:border-slate-700 shadow-2xl px-6 py-4 rounded-2xl flex items-center justify-between sm:justify-start sm:gap-8 sm:min-w-[320px]">
+              <div className="flex flex-col items-center sm:items-start">
+                <span className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-0.5">
                   Est. Arrival
                 </span>
-                <span className="text-2xl font-black text-emerald-600">
-                  {routeInfo.time} min
+                <span className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 leading-none">
+                  {routeInfo.time}{" "}
+                  <span className="text-sm font-bold">min</span>
                 </span>
               </div>
-              <div className="w-px h-10 bg-gray-200 dark:bg-slate-700"></div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+
+              <div className="w-px h-10 sm:h-12 bg-gray-200 dark:bg-slate-700 mx-2 sm:mx-0"></div>
+
+              <div className="flex flex-col items-center sm:items-start">
+                <span className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-0.5">
                   Distance
                 </span>
-                <span className="text-xl font-bold text-gray-800 dark:text-gray-200">
-                  {routeInfo.distance} km
+                <span className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-200 leading-none mt-1">
+                  {routeInfo.distance}{" "}
+                  <span className="text-sm font-semibold">km</span>
                 </span>
               </div>
             </div>

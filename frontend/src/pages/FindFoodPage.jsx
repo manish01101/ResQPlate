@@ -5,15 +5,7 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Popup,
-  Circle,
-  useMap,
-  Tooltip,
-} from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Circle } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import api from "../utils/api";
@@ -42,16 +34,6 @@ const userIcon = new L.Icon({
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
 });
-
-function MapUpdater({ center }) {
-  const map = useMap();
-  useEffect(() => {
-    if (center) {
-      map.flyTo(center, 13, { animate: true, duration: 1.5 });
-    }
-  }, [center, map]);
-  return null;
-}
 
 export default function FindFoodPage() {
   const { user } = useAuth();
@@ -111,11 +93,10 @@ export default function FindFoodPage() {
     fetchInitialLocation();
   }, [user]);
 
-  // Fullscreen Event Listener (to handle 'Esc' key exits correctly)
+  // Fullscreen Event Listener
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
-      // Force Leaflet to recalculate its size after a short delay so tiles render correctly
       setTimeout(() => {
         if (mapRef.current) mapRef.current.invalidateSize();
       }, 200);
@@ -188,9 +169,7 @@ export default function FindFoodPage() {
         }
       },
       (error) => {
-        alert(
-          "Unable to retrieve your location. Please check browser permissions.",
-        );
+        alert("Unable to retrieve location. Check browser permissions.");
         setIsLocating(false);
       },
       { enableHighAccuracy: true },
@@ -228,9 +207,7 @@ export default function FindFoodPage() {
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       if (mapWrapperRef.current.requestFullscreen) {
-        mapWrapperRef.current
-          .requestFullscreen()
-          .catch((err) => console.log(err));
+        mapWrapperRef.current.requestFullscreen().catch(console.log);
       }
     } else {
       if (document.exitFullscreen) {
@@ -254,120 +231,116 @@ export default function FindFoodPage() {
     }
   };
 
+  // Button styling dynamic class
   const filterBtnClass = (active) =>
-    `px-4 py-2 rounded-full text-sm font-bold transition-colors whitespace-nowrap border ${active ? "bg-emerald-600 text-white border-emerald-600 shadow-sm" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`;
+    `px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap border flex-1 md:flex-none text-center ${
+      active
+        ? "bg-emerald-600 text-white border-emerald-600 shadow-md"
+        : "bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700"
+    }`;
 
   // Loading State
   if (isInitializing || !userCoords) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] w-full text-emerald-700">
+      <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950 flex flex-col items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-emerald-600 mb-4"></div>
-        <p className="font-bold text-lg">Finding your location...</p>
+        <p className="font-bold text-lg text-gray-900 dark:text-slate-100">
+          Finding your location...
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      {/* Header & Controls */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-gray-200 pb-6">
-        <div>
-          <h1 className="text-3xl font-serif font-bold text-gray-900">
-            Live Food Map
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Showing real-time donations within{" "}
-            <strong className="text-emerald-600">{radius} km</strong>
-          </p>
-        </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 font-sans flex flex-col">
+      {/* ========================================= */}
+      {/* TOP SECTION: Controls (Left) & Map (Right) */}
+      {/* ========================================= */}
+      <div className="flex flex-col md:flex-row w-full bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 shadow-sm md:h-[500px] lg:h-[600px]">
+        {/* Left Side: Controls Panel (Tightened gaps for mobile) */}
+        <div className="w-full md:w-[350px] lg:w-[400px] p-4 sm:p-6 flex flex-col gap-4 sm:gap-6 flex-shrink-0 z-10 md:overflow-y-auto">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-slate-100 mb-1">
+              Live Food Map
+            </h1>
+            <p className="text-gray-500 dark:text-slate-400 text-xs sm:text-sm">
+              Showing donations within{" "}
+              <strong className="text-emerald-600 dark:text-emerald-400">
+                {radius} km
+              </strong>
+            </p>
+          </div>
 
-        <div className="flex flex-col items-end gap-2">
-          <div className="flex flex-wrap justify-end gap-2">
+          {/* Map Actions Grid */}
+          <div className="grid grid-cols-3 gap-2">
             <button
               onClick={fetchDonations}
-              className="inline-flex items-center justify-center px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold rounded-xl shadow-sm hover:bg-emerald-100 transition-colors text-sm"
+              disabled={isRefreshing}
+              className="flex flex-col items-center justify-center py-2 sm:py-2.5 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-800/50 transition-colors disabled:opacity-60 text-xs font-bold"
             >
-              {isRefreshing ? "🔄 Refreshing..." : "🔄 Refresh"}
+              <span className="text-lg mb-1">🔄</span>
+              {isRefreshing ? "Wait..." : "Refresh"}
             </button>
             <button
               onClick={handleLocateMe}
               disabled={isLocating}
-              className="inline-flex items-center justify-center px-4 py-2.5 bg-white border-2 border-emerald-500 text-emerald-600 font-bold rounded-xl shadow-sm hover:bg-emerald-50 transition-colors text-sm"
+              className="flex flex-col items-center justify-center py-2 sm:py-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-60 text-xs font-bold shadow-sm"
             >
-              {isLocating ? "🎯 Locating..." : "🎯 Locate GPS"}
+              <span className="text-lg mb-1">🎯</span>
+              {isLocating ? "Wait..." : "GPS"}
             </button>
             <button
               onClick={handleResetMap}
-              className="inline-flex items-center justify-center px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:bg-gray-100 transition-colors text-sm"
+              className="flex flex-col items-center justify-center py-2 sm:py-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-xs font-bold shadow-sm"
             >
-              ↩️ Home
+              <span className="text-lg mb-1">🏠</span>
+              Home
             </button>
           </div>
-          <div className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded shadow-inner">
-            Lat: {userCoords.lat.toFixed(4)}, Lng: {userCoords.lng.toFixed(4)}
+
+          {/* Radius Slider */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider">
+                Search Radius
+              </label>
+              <span className="text-xs font-bold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-md">
+                {radius} km
+              </span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="50"
+              value={radius}
+              onChange={(e) => setRadius(Number(e.target.value))}
+              className="w-full accent-emerald-600 dark:accent-emerald-500 h-2 bg-gray-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+            />
           </div>
         </div>
-      </div>
 
-      {/* Filters */}
-      <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
-        <div className="flex items-center gap-4 w-full md:w-1/2 flex-shrink-0">
-          <label className="font-semibold text-gray-700 whitespace-nowrap">
-            Search Radius: {radius} km
-          </label>
-          <input
-            type="range"
-            min="1"
-            max="50"
-            value={radius}
-            onChange={(e) => setRadius(Number(e.target.value))}
-            className="w-full accent-emerald-600 cursor-pointer"
-          />
-        </div>
-        <div className="flex gap-3 w-full md:w-auto pb-2 md:pb-0 overflow-x-auto">
-          <button
-            className={filterBtnClass(filter === "all")}
-            onClick={() => setFilter("all")}
-          >
-            All Types
-          </button>
-          <button
-            className={filterBtnClass(filter === "vegetarian")}
-            onClick={() => setFilter("vegetarian")}
-          >
-            🥦 Veg Only
-          </button>
-          <button
-            className={filterBtnClass(filter === "non-vegetarian")}
-            onClick={() => setFilter("non-vegetarian")}
-          >
-            🍗 Non-Veg
-          </button>
-        </div>
-      </div>
-
-      {/* Map Section */}
-      <div className="bg-white p-3 rounded-3xl shadow-sm border border-gray-200 mb-10 relative">
-        {/* Floating helper badge */}
-        <div className="absolute top-5 left-1/2 transform -translate-x-1/2 z-[1000] bg-white/95 backdrop-blur-md border border-emerald-100 shadow-md px-3 py-1.5 rounded-lg pointer-events-none flex items-center gap-2">
-          <span className="text-lg leading-none">💡</span>
-          <span className="text-emerald-800 font-bold text-xs tracking-wide">
-            Drag red pin to search
-          </span>
-        </div>
-
-        {/* MAP CONTAINER WRAPPER (Handles Fullscreen logic) */}
+        {/* Right Side: Map Area */}
         <div
           ref={mapWrapperRef}
-          className={`relative z-0 overflow-hidden bg-gray-50 ${isFullscreen ? "h-screen w-screen" : "h-[400px] md:h-[500px] w-full rounded-2xl"}`}
+          className={`relative w-full bg-gray-200 dark:bg-slate-800 z-0 flex-shrink-0 ${
+            isFullscreen
+              ? "fixed inset-0 z-[9999] h-screen w-screen"
+              : "h-[45vh] md:h-full md:flex-1"
+          }`}
         >
-          {/* Custom Production Map Controls (Floating Top-Right) */}
+          {/* Floating Helper Badge */}
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-gray-200 dark:border-slate-700 shadow-md px-3 py-1.5 rounded-full pointer-events-none flex items-center gap-2">
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs sm:text-sm tracking-wide whitespace-nowrap">
+              📍 Drag red pin to move search area
+            </span>
+          </div>
+
+          {/* Custom Floating Controls */}
           <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
-            {/* View Desired Area (Fit Bounds) Button */}
             <button
               onClick={handleFitArea}
               title="Fit all food in view"
-              className="bg-white text-gray-700 p-2 rounded-lg shadow-md border border-gray-200 hover:bg-emerald-50 hover:text-emerald-600 transition-colors flex items-center justify-center w-10 h-10"
+              className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm text-gray-700 dark:text-slate-300 p-2 sm:p-2.5 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -377,18 +350,17 @@ export default function FindFoodPage() {
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="w-5 h-5"
+                className="w-4 h-4 sm:w-5 sm:h-5"
               >
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                 <circle cx="12" cy="12" r="3"></circle>
               </svg>
             </button>
 
-            {/* Fullscreen Toggle Button */}
             <button
               onClick={toggleFullscreen}
               title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-              className="bg-white text-gray-700 p-2 rounded-lg shadow-md border border-gray-200 hover:bg-emerald-50 hover:text-emerald-600 transition-colors flex items-center justify-center w-10 h-10"
+              className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm text-gray-700 dark:text-slate-300 p-2 sm:p-2.5 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
             >
               {isFullscreen ? (
                 <svg
@@ -399,7 +371,7 @@ export default function FindFoodPage() {
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="w-5 h-5"
+                  className="w-4 h-4 sm:w-5 sm:h-5"
                 >
                   <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
                 </svg>
@@ -412,7 +384,7 @@ export default function FindFoodPage() {
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="w-5 h-5"
+                  className="w-4 h-4 sm:w-5 sm:h-5"
                 >
                   <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
                 </svg>
@@ -425,10 +397,10 @@ export default function FindFoodPage() {
             zoom={13}
             ref={mapRef}
             className="h-full w-full z-0"
-            zoomControl={false} // Disable default zoom to put ours below custom controls if desired
+            zoomControl={false}
           >
-            {/* Re-add default zoom controls on the bottom-right so they don't clash */}
-            <div className="leaflet-bottom leaflet-right mb-6 mr-2">
+            {/* Bottom Right Zoom Control */}
+            <div className="leaflet-bottom leaflet-right mb-4 mr-2">
               <div className="leaflet-control-zoom leaflet-bar leaflet-control">
                 <a
                   className="leaflet-control-zoom-in"
@@ -476,10 +448,7 @@ export default function FindFoodPage() {
                   <strong className="text-red-600 block mb-1">
                     📍 Search Center
                   </strong>
-                  <span className="text-xs text-gray-500 font-mono block mb-1">
-                    {userCoords.lat.toFixed(4)}, {userCoords.lng.toFixed(4)}
-                  </span>
-                  <span className="text-[10px] text-gray-400 italic">
+                  <span className="text-[10px] text-gray-500 italic">
                     Drag to update search area
                   </span>
                 </div>
@@ -492,7 +461,7 @@ export default function FindFoodPage() {
               pathOptions={{
                 color: "#10B981",
                 fillColor: "#10B981",
-                fillOpacity: 0.06,
+                fillOpacity: 0.08,
                 weight: 1.5,
               }}
             />
@@ -508,16 +477,12 @@ export default function FindFoodPage() {
                     ]}
                   >
                     <Popup>
-                      <div className="text-center p-1">
+                      <div className="text-center p-1 min-w-[120px]">
                         <strong className="text-emerald-700 block mb-1">
                           {d.food_title}
                         </strong>
-                        <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded inline-block mb-2 font-medium border border-gray-200">
-                          👥 {d.quantity}
-                        </span>
-                        <br />
-                        <span className="text-xs text-gray-400 font-mono">
-                          Lat: {d.location.coordinates[1].toFixed(3)}
+                        <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded inline-block font-medium">
+                          👥 Quantity: {d.quantity}
                         </span>
                       </div>
                     </Popup>
@@ -528,48 +493,78 @@ export default function FindFoodPage() {
         </div>
       </div>
 
-      {/* Results Header */}
-      <h2 className="text-2xl font-serif font-bold text-gray-900 mb-6 flex items-center gap-3">
-        {filteredDonations.length > 0 && (
-          <span className="bg-emerald-100 text-emerald-800 py-1 px-3 rounded-full text-lg shadow-sm border border-emerald-200">
-            {filteredDonations.length}
-          </span>
-        )}
-        Available Donations
-      </h2>
+      {/* ========================================= */}
+      {/* BOTTOM SECTION: Full Width Results Grid   */}
+      {/* ========================================= */}
+      <div className="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        {/* NEW: Headers and Filters logically grouped together */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100">
+              Available Donations
+            </h2>
+            <span className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 py-1 px-3 rounded-full text-sm font-bold border border-emerald-200 dark:border-emerald-700">
+              {filteredDonations.length} Found
+            </span>
+          </div>
 
-      {/* Results Grid */}
-      {filteredDonations.length === 0 ? (
-        <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-12 text-center flex flex-col items-center justify-center">
-          <div className="text-5xl mb-4 opacity-50">📭</div>
-          <h3 className="text-lg font-bold text-gray-700 mb-1">
-            No food found nearby
-          </h3>
-          <p className="text-gray-500">
-            Try dragging the red pin, expanding the radius, or clicking Refresh.
-          </p>
+          {/* Moved Food Type Filters */}
+          <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+            <button
+              className={filterBtnClass(filter === "all")}
+              onClick={() => setFilter("all")}
+            >
+              All Types
+            </button>
+            <button
+              className={filterBtnClass(filter === "vegetarian")}
+              onClick={() => setFilter("vegetarian")}
+            >
+              🥦 Veg
+            </button>
+            <button
+              className={filterBtnClass(filter === "non-vegetarian")}
+              onClick={() => setFilter("non-vegetarian")}
+            >
+              🍗 Non-Veg
+            </button>
+          </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredDonations.map((d) => {
-            const dist = haversineDistance(
-              userCoords.lat,
-              userCoords.lng,
-              d.location.coordinates[1],
-              d.location.coordinates[0],
-            );
-            return (
+
+        {filteredDonations.length === 0 ? (
+          <div className="border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-3xl p-10 sm:p-16 text-center flex flex-col items-center justify-center bg-white dark:bg-slate-900">
+            <div className="text-5xl sm:text-6xl mb-4 opacity-50">📭</div>
+            <h3 className="text-lg font-bold text-gray-700 dark:text-slate-300 mb-2">
+              No food found nearby
+            </h3>
+            <p className="text-gray-500 dark:text-slate-500 text-sm max-w-md mx-auto">
+              Try dragging the red map pin to a new area, expanding your search
+              radius, or click Refresh.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            {filteredDonations.map((d) => (
               <DonationCard
                 key={d._id}
                 donation={d}
-                distanceKm={dist}
+                distanceKm={
+                  d.location?.coordinates
+                    ? haversineDistance(
+                        userCoords.lat,
+                        userCoords.lng,
+                        d.location.coordinates[1],
+                        d.location.coordinates[0],
+                      ).toFixed(2)
+                    : null
+                }
                 onClaim={handleClaim}
                 userRole={user?.role}
               />
-            );
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

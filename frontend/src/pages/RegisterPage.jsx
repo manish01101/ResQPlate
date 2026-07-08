@@ -292,22 +292,22 @@ export default function RegisterPage() {
           </select>
 
           {/* --- INTERACTIVE MAP SECTION --- */}
-          <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mt-6">
+          <div className="bg-gray-50 dark:bg-slate-800 p-4 rounded-xl border border-gray-200 dark:border-slate-700 mt-6">
             <div className="flex justify-between items-center mb-3">
-              <label className="block text-sm font-bold text-gray-700">
+              <label className="block text-sm font-bold text-gray-700 dark:text-slate-300">
                 Pinpoint your Location <span className="text-red-500">*</span>
               </label>
               <button
                 type="button"
                 onClick={handleGetLocation}
                 disabled={isLocating}
-                className="text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-100/50 px-3 py-1.5 rounded-md border border-emerald-200 transition-colors"
+                className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 bg-emerald-100/50 dark:bg-emerald-900/40 px-3 py-1.5 rounded-md border border-emerald-200 dark:border-emerald-700 transition-colors"
               >
                 {isLocating ? "Locating..." : "🎯 Auto-GPS"}
               </button>
             </div>
 
-            <div className="h-[200px] w-full rounded-xl overflow-hidden border border-gray-300 relative z-0 mb-3">
+            <div className="h-[200px] w-full rounded-xl overflow-hidden border border-gray-300 dark:border-slate-600 relative z-0 mb-3">
               <MapContainer
                 center={position}
                 zoom={13}
@@ -328,7 +328,7 @@ export default function RegisterPage() {
               </MapContainer>
             </div>
 
-            <p className="text-[11px] text-gray-500 mb-3 text-center">
+            <p className="text-[11px] text-gray-500 dark:text-slate-400 mb-3 text-center">
               Click anywhere on the map to place your pin accurately.
             </p>
 
@@ -341,7 +341,7 @@ export default function RegisterPage() {
                 onChange={handleChange}
                 required
                 disabled={isFetchingAddress}
-                className={`${inputClasses} bg-white disabled:bg-gray-100 disabled:text-gray-500`}
+                className={`${inputClasses} bg-white dark:bg-slate-900 disabled:bg-gray-100 dark:disabled:bg-slate-800 disabled:text-gray-500 dark:disabled:text-slate-400`}
               />
               {/* Spinner inside input to show it's working */}
               {isFetchingAddress && (

@@ -178,7 +178,7 @@ export default function AboutPage() {
         <h2 className="text-3xl font-serif font-bold mb-6">
           Together, We Can End Food Waste
         </h2>
-        <p className="text-gray-400 mb-10 max-w-lg mx-auto text-lg">
+        <p className="text-gray-300 dark:text-gray-400 mb-10 max-w-lg mx-auto text-lg">
           Join ResQPlate today and be a part of the solution.
         </p>
         <Link to="/register">
