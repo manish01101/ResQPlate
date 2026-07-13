@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 import ActivePickupMap from "../components/ActivePickupMap";
-import { Loader, Clock, AlertCircle, Trash2 } from "lucide-react";
+import { Loader, Clock, AlertCircle, Trash2, Phone } from "lucide-react";
 
 export default function MyClaimsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [claims, setClaims] = useState([]);
   const [myDonations, setMyDonations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,13 +16,24 @@ export default function MyClaimsPage() {
   const [activePickup, setActivePickup] = useState(null);
   const [pinInputs, setPinInputs] = useState({});
 
+  const verificationBlocked =
+    (user?.role === "donor" || user?.role === "ngo") && !user?.isVerified;
+
   useEffect(() => {
-    fetchAllData();
-  }, []);
+    if (user) {
+      fetchAllData();
+    }
+  }, [user]);
 
   const fetchAllData = async () => {
     setLoading(true);
     try {
+      if (verificationBlocked) {
+        setClaims([]);
+        setMyDonations([]);
+        setLoading(false);
+        return;
+      }
       // Fetch Claims (Outgoing for NGOs, Incoming for Donors)
       const claimsRes = await api.get("/claims/my");
       setClaims(claimsRes.data.data || []);
@@ -77,6 +90,29 @@ export default function MyClaimsPage() {
         return "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-700";
     }
   };
+
+  if (verificationBlocked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950 px-4">
+        <div className="max-w-xl rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center shadow-sm dark:border-amber-800 dark:bg-amber-950/30">
+          <div className="text-4xl mb-3">🛡️</div>
+          <h2 className="text-2xl font-bold text-amber-900 dark:text-amber-300">
+            Verification required
+          </h2>
+          <p className="mt-3 text-sm text-amber-800 dark:text-amber-200">
+            Your account must be approved by an admin before you can manage
+            donations or pickup requests.
+          </p>
+          <button
+            onClick={() => navigate("/verify")}
+            className="mt-6 rounded-lg bg-amber-600 px-4 py-2 font-semibold text-white"
+          >
+            Go to verification
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading)
     return (
@@ -207,6 +243,37 @@ export default function MyClaimsPage() {
 
                     {/* Spacer to push actions to the bottom if cards have different heights */}
                     <div className="flex-grow"></div>
+
+                    {(claim.status === "accepted" ||
+                      claim.status === "completed") && (
+                      <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-slate-800 dark:bg-slate-800/70">
+                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-slate-400">
+                          <Phone className="h-3.5 w-3.5" />
+                          Contact details
+                        </div>
+                        <div className="mt-2 space-y-2 text-sm text-gray-700 dark:text-slate-300">
+                          <a
+                            href={`tel:${user?.role === "donor" ? claim.receiver_id?.phone : claim.donation_id?.donor_id?.phone}`}
+                            className="block rounded-lg border border-gray-200 bg-white px-3 py-2 font-medium hover:border-emerald-300 dark:border-slate-700 dark:bg-slate-900"
+                          >
+                            {user?.role === "donor"
+                              ? "NGO phone"
+                              : "Donor phone"}
+                            :{" "}
+                            {user?.role === "donor"
+                              ? claim.receiver_id?.phone || "Not shared yet"
+                              : claim.donation_id?.donor_id?.phone ||
+                                "Not shared yet"}
+                          </a>
+                          <a
+                            href={`tel:${user?.phone}`}
+                            className="block rounded-lg border border-gray-200 bg-white px-3 py-2 font-medium hover:border-emerald-300 dark:border-slate-700 dark:bg-slate-900"
+                          >
+                            Your phone: {user?.phone || "Not shared yet"}
+                          </a>
+                        </div>
+                      </div>
+                    )}
 
                     {/* OTP Display for Donor (Accepted Status) */}
                     {user?.role === "donor" &&
