@@ -72,6 +72,13 @@ router.get("/:id", protect, async (req, res) => {
 // @access Private (donors only)
 router.post("/", protect, authorize("donor"), async (req, res) => {
   try {
+    if (req.user.role === "donor" && !req.user.isVerified) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account must be verified before you can donate food.",
+      });
+    }
+
     const {
       food_title,
       quantity,

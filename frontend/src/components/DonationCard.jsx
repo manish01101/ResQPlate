@@ -7,6 +7,8 @@ export default function DonationCard({
   distanceKm,
   onClaim,
   userRole,
+  isVerificationBlocked = false,
+  onVerifyRequired,
 }) {
   const isVegetarian =
     donation.food_type === "vegetarian" || donation.food_type === "vegan";
@@ -112,10 +114,12 @@ export default function DonationCard({
 
         {userRole === "ngo" && donation.status === "available" && (
           <button
-            onClick={() => onClaim(donation._id)}
+            onClick={() =>
+              isVerificationBlocked ? onVerifyRequired() : onClaim(donation._id)
+            }
             className="inline-flex items-center px-4 py-2 border border-transparent text-xs sm:text-sm font-bold rounded-lg shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 dark:hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 dark:focus:ring-offset-slate-900 transition-all active:translate-y-0.5 whitespace-nowrap"
           >
-            Claim Pickup
+            {isVerificationBlocked ? "Verify to Claim" : "Claim Pickup"}
           </button>
         )}
       </div>

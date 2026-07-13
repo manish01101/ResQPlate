@@ -57,7 +57,11 @@ router.put("/users/:id/verify", async (req, res) => {
   try {
     const user = await User.findByIdAndUpdate(
       req.params.id,
-      { isVerified: true },
+      {
+        isVerified: true,
+        verificationStatus: "verified",
+        verificationReviewedAt: new Date(),
+      },
       { new: true },
     );
     if (!user)
@@ -69,6 +73,28 @@ router.put("/users/:id/verify", async (req, res) => {
       message: `${user.name} verified successfully`,
       data: user,
     });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// @route  PUT /api/admin/users/:id/reject
+router.put("/users/:id/reject", async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      {
+        isVerified: false,
+        verificationStatus: "rejected",
+        verificationReviewedAt: new Date(),
+      },
+      { new: true },
+    );
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    res.json({ success: true, message: "Verification rejected", data: user });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

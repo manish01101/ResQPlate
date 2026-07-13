@@ -12,7 +12,8 @@ import FindFoodPage from "./pages/FindFoodPage";
 import DonatePage from "./pages/DonatePage";
 import MyClaimsPage from "./pages/MyClaimsPage";
 import AdminPage from "./pages/AdminPage";
-import ResQBot from "./components/ResQBot"; 
+import VerifyPage from "./pages/VerifyPage";
+import ResQBot from "./components/ResQBot";
 
 function PrivateRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -27,6 +28,26 @@ function PrivateRoute({ children, roles }) {
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role))
     return <Navigate to="/dashboard" replace />;
+
+  return children;
+}
+
+function VerifiedActionRoute({ children, roles }) {
+  const { user, loading } = useAuth();
+
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950 w-full">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      </div>
+    );
+
+  if (!user) return <Navigate to="/login" replace />;
+  if (roles && !roles.includes(user.role))
+    return <Navigate to="/dashboard" replace />;
+  if ((user.role === "donor" || user.role === "ngo") && !user.isVerified) {
+    return <Navigate to="/verify" replace />;
+  }
 
   return children;
 }
@@ -70,6 +91,14 @@ function AppRoutes() {
             }
           />
           <Route
+            path="/verify"
+            element={
+              <PrivateRoute>
+                <VerifyPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
             path="/find-food"
             element={
               <PrivateRoute>
@@ -80,17 +109,17 @@ function AppRoutes() {
           <Route
             path="/donate"
             element={
-              <PrivateRoute roles={["donor", "admin"]}>
+              <VerifiedActionRoute roles={["donor", "admin"]}>
                 <DonatePage />
-              </PrivateRoute>
+              </VerifiedActionRoute>
             }
           />
           <Route
             path="/my-claims"
             element={
-              <PrivateRoute roles={["ngo", "donor", "admin"]}>
+              <VerifiedActionRoute roles={["ngo", "donor", "admin"]}>
                 <MyClaimsPage />
-              </PrivateRoute>
+              </VerifiedActionRoute>
             }
           />
           <Route
@@ -110,7 +139,6 @@ function AppRoutes() {
       </main>
 
       <ResQBot />
-      
     </div>
   );
 }

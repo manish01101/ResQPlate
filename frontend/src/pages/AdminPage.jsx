@@ -51,11 +51,24 @@ export default function AdminPage() {
       return;
     try {
       await api.put(`/admin/users/${userId}/verify`);
-      setUsers((prev) =>
-        prev.map((u) => (u._id === userId ? { ...u, isVerified: true } : u)),
-      );
+      await fetchData();
     } catch (err) {
       alert("Verification failed");
+    }
+  };
+
+  const handleReject = async (userId, role) => {
+    if (
+      !window.confirm(
+        `Reject this ${role.toUpperCase()}'s verification request?`,
+      )
+    )
+      return;
+    try {
+      await api.put(`/admin/users/${userId}/reject`);
+      await fetchData();
+    } catch (err) {
+      alert("Rejection failed");
     }
   };
 
@@ -106,6 +119,20 @@ export default function AdminPage() {
       u.name.toLowerCase().includes(searchUser.toLowerCase()) ||
       u.email.toLowerCase().includes(searchUser.toLowerCase()),
   );
+
+  const pendingVerificationRequests = users.filter(
+    (u) =>
+      u.role !== "admin" &&
+      !u.isVerified &&
+      (u.verificationStatus === "pending" || u.verificationDocument),
+  );
+
+  const getDocumentPreviewType = (url) => {
+    if (!url) return "none";
+    if (url.startsWith("data:image/")) return "image";
+    if (url.startsWith("data:application/pdf")) return "pdf";
+    return "other";
+  };
 
   return (
     <div className="w-full min-h-screen bg-white dark:bg-slate-950 py-6 sm:py-10 px-4 sm:px-6 lg:px-8">
@@ -204,7 +231,7 @@ export default function AdminPage() {
         {/* USERS SECTION */}
         {tab === "users" && (
           <div className="bg-white dark:bg-slate-900 shadow-sm rounded-2xl border border-gray-200 dark:border-slate-800 overflow-hidden">
-            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-slate-800">
+            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-slate-800 space-y-4">
               <input
                 type="text"
                 placeholder="Search by name or email..."
@@ -212,6 +239,138 @@ export default function AdminPage() {
                 onChange={(e) => setSearchUser(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
+
+              {pendingVerificationRequests.length > 0 && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/20">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold text-amber-800 dark:text-amber-300">
+                        Verification requests waiting for review
+                      </h3>
+                      <p className="text-xs text-amber-700 dark:text-amber-400">
+                        Review submitted identity documents and approve or
+                        reject each account.
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                      {pendingVerificationRequests.length}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {pendingVerificationRequests.map((u) => (
+                      <div
+                        key={u._id}
+                        className="rounded-xl border border-amber-200 bg-white p-4 shadow-sm dark:border-amber-800 dark:bg-slate-900"
+                      >
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-bold text-gray-900 dark:text-slate-100">
+                                {u.name}
+                              </span>
+                              <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold uppercase text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                                {u.role}
+                              </span>
+                              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold uppercase text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                                {u.verificationStatus || "pending"}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-slate-400">
+                              <p>{u.email}</p>
+                              <p>Phone: {u.phone || "Not provided"}</p>
+                              <p>
+                                Aadhaar: {u.aadhaarNumber || "Not provided"}
+                              </p>
+                              <p>
+                                Document type:{" "}
+                                {u.verificationDocumentType || "Aadhaar"}
+                              </p>
+                              <p>
+                                Submitted:{" "}
+                                {u.verificationSubmittedAt
+                                  ? new Date(
+                                      u.verificationSubmittedAt,
+                                    ).toLocaleString()
+                                  : "Not submitted"}
+                              </p>
+                            </div>
+                            {u.verificationNotes && (
+                              <p className="text-sm text-gray-700 dark:text-slate-300">
+                                <span className="font-semibold">
+                                  Admin note:
+                                </span>{" "}
+                                {u.verificationNotes}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col gap-3">
+                            {u.verificationDocument ? (
+                              <div className="w-full min-w-[240px] rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 dark:border-emerald-800 dark:bg-emerald-950/20">
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                  <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                                    Submitted document
+                                  </p>
+                                  <a
+                                    href={u.verificationDocument}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-xs font-semibold text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300"
+                                  >
+                                    Open in new tab
+                                  </a>
+                                </div>
+
+                                {getDocumentPreviewType(
+                                  u.verificationDocument,
+                                ) === "image" ? (
+                                  <img
+                                    src={u.verificationDocument}
+                                    alt="Uploaded verification document"
+                                    className="max-h-48 w-full rounded-lg border border-emerald-200 bg-white object-contain dark:border-emerald-800 dark:bg-slate-950"
+                                  />
+                                ) : getDocumentPreviewType(
+                                    u.verificationDocument,
+                                  ) === "pdf" ? (
+                                  <iframe
+                                    src={u.verificationDocument}
+                                    title="Uploaded verification document"
+                                    className="h-48 w-full rounded-lg border border-emerald-200 bg-white dark:border-emerald-800 dark:bg-slate-950"
+                                  />
+                                ) : (
+                                  <div className="rounded-lg border border-dashed border-emerald-300 bg-white px-3 py-4 text-center text-sm text-emerald-700 dark:border-emerald-800 dark:bg-slate-950 dark:text-emerald-300">
+                                    Preview available in a new tab.
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+                                No document uploaded
+                              </div>
+                            )}
+
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleVerify(u._id, u.role)}
+                                className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleReject(u._id, u.role)}
+                                className="flex-1 rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/20"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="hidden md:block overflow-x-auto">
@@ -272,10 +431,19 @@ export default function AdminPage() {
                           <span className="text-gray-500 dark:text-slate-400 text-xs">
                             N/A
                           </span>
-                        ) : (
+                        ) : u.verificationStatus === "rejected" ? (
+                          <span className="text-red-600 dark:text-red-400 font-bold flex items-center gap-1">
+                            <X className="w-4 h-4" />
+                            Rejected
+                          </span>
+                        ) : u.verificationDocument ? (
                           <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
                             <X className="w-4 h-4" />
-                            Pending
+                            Pending review
+                          </span>
+                        ) : (
+                          <span className="text-gray-500 dark:text-slate-400 text-xs">
+                            Not submitted
                           </span>
                         )}
                       </td>
@@ -284,12 +452,20 @@ export default function AdminPage() {
                       </td>
                       <td className="px-6 py-4 text-right space-x-2">
                         {!u.isVerified && u.role !== "admin" && (
-                          <button
-                            onClick={() => handleVerify(u._id, u.role)}
-                            className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-800 font-bold rounded-lg transition-colors text-xs whitespace-nowrap"
-                          >
-                            Approve
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleVerify(u._id, u.role)}
+                              className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-800 font-bold rounded-lg transition-colors text-xs whitespace-nowrap"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleReject(u._id, u.role)}
+                              className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 font-bold rounded-lg transition-colors text-xs whitespace-nowrap"
+                            >
+                              Reject
+                            </button>
+                          </>
                         )}
                         {u.role !== "admin" && (
                           <button

@@ -83,18 +83,25 @@ export default function Navbar() {
                     Find Food
                   </NavLink>
 
-                  {user?.role === "donor" && (
+                  {user?.role === "donor" && user?.isVerified && (
                     <NavLink to="/donate" className={desktopNavLinkClass}>
                       Donate
                     </NavLink>
                   )}
-                  {(user?.role === "donor" || user?.role === "ngo") && (
-                    <NavLink to="/my-claims" className={desktopNavLinkClass}>
-                      {user?.role === "donor"
-                        ? "Manage Donations"
-                        : "My Claims"}
-                    </NavLink>
-                  )}
+                  {(user?.role === "donor" || user?.role === "ngo") &&
+                    user?.isVerified && (
+                      <NavLink to="/my-claims" className={desktopNavLinkClass}>
+                        {user?.role === "donor"
+                          ? "Manage Donations"
+                          : "My Claims"}
+                      </NavLink>
+                    )}
+                  {(user?.role === "donor" || user?.role === "ngo") &&
+                    !user?.isVerified && (
+                      <NavLink to="/verify" className={desktopNavLinkClass}>
+                        Verify Account
+                      </NavLink>
+                    )}
                   {user?.role === "admin" && (
                     <NavLink to="/admin" className={desktopNavLinkClass}>
                       Admin
@@ -220,7 +227,7 @@ export default function Navbar() {
                 >
                   Find Food
                 </NavLink>
-                {user?.role === "donor" && (
+                {user?.role === "donor" && user?.isVerified && (
                   <NavLink
                     to="/donate"
                     className={navLinkClass}
@@ -229,15 +236,28 @@ export default function Navbar() {
                     Donate
                   </NavLink>
                 )}
-                {(user?.role === "donor" || user?.role === "ngo") && (
-                  <NavLink
-                    to="/my-claims"
-                    className={navLinkClass}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    {user?.role === "donor" ? "Manage Donations" : "My Claims"}
-                  </NavLink>
-                )}
+                {(user?.role === "donor" || user?.role === "ngo") &&
+                  user?.isVerified && (
+                    <NavLink
+                      to="/my-claims"
+                      className={navLinkClass}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {user?.role === "donor"
+                        ? "Manage Donations"
+                        : "My Claims"}
+                    </NavLink>
+                  )}
+                {(user?.role === "donor" || user?.role === "ngo") &&
+                  !user?.isVerified && (
+                    <NavLink
+                      to="/verify"
+                      className={navLinkClass}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Verify Account
+                    </NavLink>
+                  )}
                 {user?.role === "admin" && (
                   <NavLink
                     to="/admin"

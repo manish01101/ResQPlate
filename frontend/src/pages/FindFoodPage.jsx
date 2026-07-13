@@ -6,6 +6,7 @@ import React, {
   useMemo,
 } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Circle } from "react-leaflet";
+import { useNavigate } from "react-router-dom";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import api from "../utils/api";
@@ -37,6 +38,7 @@ const userIcon = new L.Icon({
 
 export default function FindFoodPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [donations, setDonations] = useState([]);
   const [radius, setRadius] = useState(20);
   const [filter, setFilter] = useState("all");
@@ -47,6 +49,8 @@ export default function FindFoodPage() {
   const [isLocating, setIsLocating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const verificationBlocked =
+    (user?.role === "donor" || user?.role === "ngo") && !user?.isVerified;
 
   // Refs
   const mapRef = useRef(null);
@@ -194,6 +198,10 @@ export default function FindFoodPage() {
   };
 
   const handleClaim = async (donationId) => {
+    if (verificationBlocked) {
+      navigate("/verify");
+      return;
+    }
     try {
       await api.post("/claims", { donation_id: donationId });
       alert("✅ Request sent successfully! Waiting for donor approval.");
@@ -263,6 +271,22 @@ export default function FindFoodPage() {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-slate-100 mb-1">
               Live Food Map
             </h1>
+            {verificationBlocked && (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                <div className="font-semibold">
+                  Account verification required
+                </div>
+                <p className="mt-1">
+                  Please complete verification to start claiming pickups.
+                </p>
+                <button
+                  onClick={() => navigate("/verify")}
+                  className="mt-2 font-semibold underline"
+                >
+                  Go to verification page
+                </button>
+              </div>
+            )}
             <p className="text-gray-500 dark:text-slate-400 text-xs sm:text-sm">
               Showing donations within{" "}
               <strong className="text-emerald-600 dark:text-emerald-400">
@@ -560,6 +584,8 @@ export default function FindFoodPage() {
                 }
                 onClaim={handleClaim}
                 userRole={user?.role}
+                isVerificationBlocked={verificationBlocked}
+                onVerifyRequired={() => navigate("/verify")}
               />
             ))}
           </div>

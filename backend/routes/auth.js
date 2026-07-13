@@ -73,6 +73,9 @@ router.post(
           email: user.email,
           role: user.role,
           isVerified: user.isVerified,
+          verificationStatus: user.verificationStatus,
+          verificationDocument: user.verificationDocument,
+          phone: user.phone,
           location: user.location,
         },
       });
@@ -111,6 +114,9 @@ router.post(
           email: user.email,
           role: user.role,
           isVerified: user.isVerified,
+          verificationStatus: user.verificationStatus,
+          verificationDocument: user.verificationDocument,
+          phone: user.phone,
           location: user.location,
         },
       });

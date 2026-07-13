@@ -39,8 +39,23 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    const token = localStorage.getItem("resqplate_token");
+    if (!token) return null;
+    try {
+      const res = await api.get("/auth/me");
+      setUser(res.data.user);
+      return res.data.user;
+    } catch (error) {
+      console.error("Failed to refresh user", error);
+      return null;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, register, logout, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

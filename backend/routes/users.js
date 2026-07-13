@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const User = require('../models/user');
+const User = require("../models/user");
 const { protect } = require("../middleware/auth");
 
 // @route  GET /api/users/profile
@@ -59,4 +59,39 @@ router.get("/volunteers/nearby", protect, async (req, res) => {
   }
 });
 
+// @route  POST /api/users/verify-submit
+// @desc   User submits government ID for verification
+router.post("/verify-submit", protect, async (req, res) => {
+  try {
+    const { documentUrl, aadhaarNumber, documentType, notes } = req.body;
+    if (!documentUrl || !aadhaarNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "Please upload a document and provide your Aadhaar number",
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        verificationDocument: documentUrl,
+        verificationStatus: "pending",
+        aadhaarNumber,
+        verificationDocumentType: documentType || "Aadhaar",
+        verificationNotes: notes || "",
+        verificationSubmittedAt: new Date(),
+        verificationReviewedAt: null,
+      },
+      { new: true },
+    );
+
+    res.json({
+      success: true,
+      message: "Verification submitted to Admin",
+      data: user,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 module.exports = router;

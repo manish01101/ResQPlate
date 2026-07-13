@@ -29,6 +29,8 @@ const StatCard = ({
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const verificationBlocked =
+    (user?.role === "donor" || user?.role === "ngo") && !user?.isVerified;
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -191,8 +193,17 @@ export default function DashboardPage() {
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100 mb-4 sm:mb-6">
             Quick Actions
           </h2>
+          {verificationBlocked && (
+            <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+              <div className="font-semibold">Verification needed</div>
+              <p className="mt-1">
+                Your account is waiting for admin approval. Complete the
+                verification form to unlock donating or claiming food.
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            {user?.role === "donor" && (
+            {user?.role === "donor" && !verificationBlocked && (
               <button
                 onClick={() => navigate("/donate")}
                 className="group bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl cursor-pointer shadow-sm border border-gray-200 dark:border-slate-800 hover:shadow-lg hover:border-emerald-300 dark:hover:border-emerald-600 transition-all duration-200 flex flex-col text-left active:translate-y-0.5"
@@ -209,6 +220,28 @@ export default function DashboardPage() {
                 </p>
                 <div className="mt-4 text-emerald-600 dark:text-emerald-400 font-semibold text-sm flex items-center group-hover:translate-x-1 transition-transform">
                   Get started
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </div>
+              </button>
+            )}
+
+            {user?.role === "donor" && verificationBlocked && (
+              <button
+                onClick={() => navigate("/verify")}
+                className="group bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-2xl cursor-pointer shadow-sm border border-gray-200 dark:border-slate-800 hover:shadow-lg hover:border-amber-300 dark:hover:border-amber-600 transition-all duration-200 flex flex-col text-left active:translate-y-0.5"
+              >
+                <div className="h-12 w-12 bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 rounded-lg flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
+                  🛡️
+                </div>
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-slate-100 mb-2">
+                  Verify Your Account
+                </h3>
+                <p className="text-sm sm:text-base text-gray-500 dark:text-slate-400 flex-grow">
+                  Upload your Aadhaar details to get approved by the admin and
+                  unlock donation and pickup actions.
+                </p>
+                <div className="mt-4 text-amber-600 dark:text-amber-400 font-semibold text-sm flex items-center group-hover:translate-x-1 transition-transform">
+                  Start verification
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </div>
               </button>

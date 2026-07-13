@@ -13,6 +13,14 @@ router.post("/", protect, authorize("ngo"), async (req, res) => {
   try {
     const { donation_id } = req.body;
 
+    if (req.user.role !== "ngo" || !req.user.isVerified) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your account needs admin verification before you can claim pickups.",
+      });
+    }
+
     const donation = await Donation.findById(donation_id);
     if (!donation)
       return res
@@ -203,7 +211,14 @@ router.get("/my", protect, async (req, res) => {
     }
 
     const claims = await Claim.find(query)
-      .populate("donation_id", "food_title quantity location expiry_datetime")
+      .populate({
+        path: "donation_id",
+        select: "food_title quantity location expiry_datetime donor_id",
+        populate: {
+          path: "donor_id",
+          select: "name phone",
+        },
+      })
       .populate("receiver_id", "name phone")
       .sort("-requestedAt")
       .limit(50);
