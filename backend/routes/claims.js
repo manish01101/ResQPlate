@@ -100,10 +100,7 @@ router.put("/:id/accept", protect, authorize("donor"), async (req, res) => {
   }
 });
 
-// @route  PUT /api/claims/:id/complete
-// @desc   Mark pickup as physically completed
-// @access Private (ngo or donor)
-router.put("/:id/complete", protect, async (req, res) => {
+const completeClaimHandler = async (req, res) => {
   try {
     const claim = await Claim.findById(req.params.id).populate("donation_id");
     if (!claim)
@@ -111,10 +108,9 @@ router.put("/:id/complete", protect, async (req, res) => {
         .status(404)
         .json({ success: false, message: "Claim not found" });
 
-    // Verify the PIN provided by the NGO
-    const { pin } = req.body;
+    const { pin, pickup_pin } = req.body;
     const expectedPin = String(claim.pickup_pin).trim();
-    const receivedPin = String(pin).trim();
+    const receivedPin = String(pin ?? pickup_pin ?? "").trim();
 
     if (expectedPin !== receivedPin) {
       return res.status(400).json({
@@ -147,7 +143,16 @@ router.put("/:id/complete", protect, async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
-});
+};
+
+// @route  PUT /api/claims/:id/complete
+// @route  POST /api/claims/:id/complete
+// @route  PUT /api/claims/:id/verify
+// @route  POST /api/claims/:id/verify
+// @desc   Mark pickup as physically completed
+// @access Private (ngo or donor)
+router.put(["/:id/complete", "/:id/verify"], protect, completeClaimHandler);
+router.post(["/:id/complete", "/:id/verify"], protect, completeClaimHandler);
 
 // @route  PUT /api/claims/:id/cancel
 // @desc   Cancel a claim — penalizes reliability score

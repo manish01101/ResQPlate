@@ -116,7 +116,7 @@ export default function FindFoodPage() {
     setIsRefreshing(true);
     try {
       const res = await api.get(
-        `/donations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radius}&status=available`,
+        `/donations/nearby?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radius}&status=available`,
       );
       setDonations(res.data.data);
     } catch (err) {

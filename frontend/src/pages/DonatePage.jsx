@@ -84,6 +84,13 @@ export default function DonatePage() {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
+  const getMinDateTime = () => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset();
+    const localNow = new Date(now.getTime() - offset * 60000);
+    return localNow.toISOString().slice(0, 16);
+  };
+
   const handleChange = (e) =>
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
@@ -329,6 +336,7 @@ export default function DonatePage() {
                     name="expiry_datetime"
                     value={form.expiry_datetime}
                     onChange={handleChange}
+                    min={getMinDateTime()}
                     required
                     className={inputClasses}
                   />
