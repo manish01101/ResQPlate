@@ -155,6 +155,52 @@ describe("Donation Routes", () => {
     expect(response.status).toBe(200);
     expect(response.body.data.length).toBe(0);
   });
+
+  test("stores and returns mod-FA recommended recipients for a donation", async () => {
+    await User.create({
+      name: "Nearby NGO",
+      email: "nearby.ngo@test.com",
+      password: "password123",
+      role: "ngo",
+      phone: "5555555555",
+      isVerified: true,
+      reliabilityScore: 0.95,
+      location: {
+        type: "Point",
+        coordinates: [88.3641, 22.5728],
+        address: "Kolkata",
+      },
+    });
+
+    const createResponse = await request(app)
+      .post("/api/donations")
+      .set("Authorization", `Bearer ${donorToken}`)
+      .send({
+        food_title: "Fresh Food",
+        quantity: "10 kg",
+        food_type: "vegetarian",
+        expiry_datetime: new Date(Date.now() + 86400000).toISOString(),
+        location: {
+          type: "Point",
+          coordinates: [88.3639, 22.5726],
+          address: "Test St",
+        },
+      });
+
+    expect(createResponse.status).toBe(201);
+    expect(createResponse.body.recommendedRecipients).toBeDefined();
+    expect(createResponse.body.recommendedRecipients.length).toBeGreaterThan(0);
+
+    const donationId = createResponse.body.data._id;
+    const detailResponse = await request(app)
+      .get(`/api/donations/${donationId}`)
+      .set("Authorization", `Bearer ${donorToken}`);
+
+    expect(detailResponse.status).toBe(200);
+    expect(
+      detailResponse.body.data.recommendedRecipients.length,
+    ).toBeGreaterThan(0);
+  });
 });
 
 // ==========================================

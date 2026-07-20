@@ -58,6 +58,19 @@ const DonationSchema = new mongoose.Schema(
       default: null,
     },
     claimed_at: Date,
+    recommendedRecipients: {
+      type: [
+        {
+          rank: Number,
+          volunteerId: mongoose.Schema.Types.ObjectId,
+          name: String,
+          distanceKm: Number,
+          reliabilityScore: Number,
+          faScore: Number,
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: true },
 );

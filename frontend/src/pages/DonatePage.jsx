@@ -77,6 +77,9 @@ export default function DonatePage() {
   const [isLocating, setIsLocating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const notificationResults = Array.isArray(result?.notificationResults)
+    ? result.notificationResults
+    : [];
   const [error, setError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -208,6 +211,10 @@ export default function DonatePage() {
       { enableHighAccuracy: true },
     );
   };
+
+  const recommendedRecipients = Array.isArray(result?.recommendedRecipients)
+    ? result.recommendedRecipients
+    : [];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -693,10 +700,94 @@ export default function DonatePage() {
                 <h3 className="text-3xl font-extrabold text-emerald-900 dark:text-emerald-100 mb-3">
                   Donation Published!
                 </h3>
-                <p className="text-lg text-emerald-700 dark:text-emerald-300 mb-8 font-medium">
-                  Nearby volunteers and NGOs have been notified. Thank you for
-                  your generosity.
+                <p className="text-lg text-emerald-700 dark:text-emerald-300 mb-6 font-medium">
+                  Nearby volunteers and NGOs were ranked for this donation based
+                  on proximity and reliability. Thank you for your generosity.
                 </p>
+
+                {recommendedRecipients.length > 0 ? (
+                  <div className="mx-auto mb-8 max-w-2xl rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white/80 dark:bg-slate-900/60 p-6 text-left shadow-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-lg font-extrabold text-emerald-900 dark:text-emerald-100">
+                          Recommended recipients
+                        </h4>
+                        <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
+                          These are the top matches for your donation.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-3 py-1 text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                        {recommendedRecipients.length} match
+                        {recommendedRecipients.length > 1 ? "es" : ""}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                      {recommendedRecipients.map((recipient) => (
+                        <div
+                          key={recipient.volunteerId || recipient.name}
+                          className="rounded-xl border border-emerald-100 dark:border-emerald-800/60 bg-emerald-50/70 dark:bg-emerald-900/20 px-4 py-3"
+                        >
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="font-bold text-emerald-900 dark:text-emerald-100">
+                                {recipient.name}
+                              </p>
+                              <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                                Rank #{recipient.rank}
+                              </p>
+                            </div>
+                            <div className="text-sm text-emerald-700 dark:text-emerald-300 sm:text-right">
+                              <p>{recipient.distanceKm?.toFixed(1)} km away</p>
+                              <p>
+                                Reliability:{" "}
+                                {Math.round(
+                                  (recipient.reliabilityScore || 0) * 100,
+                                )}
+                                %
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mx-auto mb-8 max-w-2xl rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white/70 dark:bg-slate-900/60 p-4 text-sm text-emerald-700 dark:text-emerald-300">
+                    No nearby verified recipients were found for this donation
+                    yet.
+                  </div>
+                )}
+
+                {notificationResults.length > 0 && (
+                  <div className="mx-auto mb-8 max-w-2xl rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/80 p-6 shadow-sm text-left">
+                    <h4 className="text-lg font-extrabold text-slate-900 dark:text-slate-100 mb-3">
+                      Email Notification Status
+                    </h4>
+                    <div className="space-y-3">
+                      {notificationResults.map((item) => (
+                        <div
+                          key={item.email || item.status}
+                          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4"
+                        >
+                          <p className="font-semibold text-slate-900 dark:text-slate-100">
+                            {item.email || "Recipient email not available"}
+                          </p>
+                          <p className="text-sm text-slate-600 dark:text-slate-400">
+                            Status:{" "}
+                            <span className="font-bold">{item.status}</span>
+                            {item.status === "failed" && item.error
+                              ? ` — ${item.error}`
+                              : ""}
+                            {item.status === "skipped" && item.reason
+                              ? ` — ${item.reason}`
+                              : ""}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <button

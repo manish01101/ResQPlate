@@ -4,6 +4,7 @@ const Donation = require("../models/donation");
 const User = require("../models/user");
 const { protect, authorize } = require("../middleware/auth");
 const { modFireflyAlgorithm } = require("../utils/algorithms");
+const { sendEmailToRecipients } = require("../utils/notifications");
 
 // @route  GET /api/donations
 // @desc   Get all available donations (Standard list)
@@ -153,21 +154,44 @@ router.post("/", protect, authorize("donor"), async (req, res) => {
       },
     }).limit(20);
 
-    let notificationTargets = [];
+    let recommendedRecipients = [];
+    let notificationResults = [];
+
     if (nearbyVolunteers.length > 0) {
-      notificationTargets = modFireflyAlgorithm(donation, nearbyVolunteers, {
+      recommendedRecipients = modFireflyAlgorithm(donation, nearbyVolunteers, {
         topK: 3,
+      }).map((recipient) => {
+        const volunteer = nearbyVolunteers.find(
+          (vol) => vol._id.toString() === recipient.volunteerId.toString(),
+        );
+        return {
+          ...recipient,
+          email: volunteer?.email || null,
+        };
       });
+
       console.log(
-        "[mod-FA] Notification targets:",
-        notificationTargets.map((v) => v.name),
+        "[mod-FA] Recommended recipients:",
+        recommendedRecipients.map((v) => v.name),
+      );
+
+      await Donation.findByIdAndUpdate(donation._id, {
+        recommendedRecipients,
+      });
+
+      notificationResults = await sendEmailToRecipients(
+        recommendedRecipients,
+        donation,
       );
     }
 
+    const savedDonation = await Donation.findById(donation._id);
+
     res.status(201).json({
       success: true,
-      data: donation,
-      notifiedVolunteers: notificationTargets,
+      data: savedDonation,
+      recommendedRecipients,
+      notificationResults,
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
