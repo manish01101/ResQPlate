@@ -87,12 +87,23 @@ DonationSchema.virtual("minutesRemaining").get(function () {
   return Math.max(0, Math.floor((this.expiry_datetime - Date.now()) / 60000));
 });
 
-// Virtual: food urgency score for mod-FA (quantity proxy × time urgency)
+// Virtual: food urgency score for mod-FA based on perishability and expiry urgency
 DonationSchema.virtual("urgencyScore").get(function () {
   const minutesLeft = this.minutesRemaining;
   if (minutesLeft === 0) return 0;
-  // Higher score = more urgent (less time left = higher urgency)
-  return parseFloat(Math.min(1, 120 / minutesLeft).toFixed(3));
+
+  const perishabilityBase = {
+    vegetarian: 0.45,
+    "non-vegetarian": 0.7,
+    vegan: 0.4,
+  };
+
+  const base = perishabilityBase[this.food_type] ?? 0.5;
+
+  const timePressure = Math.max(0, Math.min(1, 1 - minutesLeft / (24 * 60)));
+  const urgency = parseFloat((base * 0.55 + timePressure * 0.45).toFixed(3));
+
+  return Math.min(1, urgency);
 });
 
 DonationSchema.set("toJSON", { virtuals: true });

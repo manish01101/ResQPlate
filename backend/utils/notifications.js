@@ -1,47 +1,55 @@
-const nodemailer = require("nodemailer");
-
-const getTransporter = () => {
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_SECURE } =
-    process.env;
-
-  if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS) {
-    console.warn(
-      "[notifications] SMTP configuration not found. Email delivery will be skipped.",
-    );
-    return null;
-  }
-
-  return nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: parseInt(SMTP_PORT, 10),
-    secure: SMTP_SECURE === "true",
-    auth: {
-      user: SMTP_USER,
-      pass: SMTP_PASS,
-    },
-  });
-};
-
 const sendEmail = async ({ to, subject, text, html }) => {
-  const transporter = getTransporter();
-  if (!transporter) {
-    console.info(
-      `[notifications] Skipped email to ${to}. SMTP is not configured.`,
+  const serviceId =
+    process.env.EMAILJS_SERVICE_ID || process.env.VITE_EMAILJS_SERVICE_ID;
+  const templateId =
+    process.env.EMAILJS_TEMPLATE_ID ||
+    process.env.EMAILJS_NEWSLETTER_TEMPLATE_ID ||
+    process.env.VITE_EMAILJS_NEWSLETTER_TEMPLATE_ID;
+  const publicKey =
+    process.env.EMAILJS_PUBLIC_KEY || process.env.VITE_EMAILJS_PUBLIC_KEY;
+
+  if (!serviceId || !templateId || !publicKey) {
+    console.warn(
+      "[notifications] EmailJS configuration not found. Email delivery will be skipped.",
     );
     return { to, skipped: true };
   }
 
-  const fromAddress = process.env.EMAIL_FROM || process.env.SMTP_USER;
-  const message = {
-    from: fromAddress,
-    to,
-    subject,
-    text,
-    html,
+  const overrideEmail = process.env.NOTIFICATION_OVERRIDE_EMAIL;
+  const recipientEmail = overrideEmail || to;
+
+  const payload = {
+    service_id: serviceId,
+    template_id: templateId,
+    user_id: publicKey,
+    template_params: {
+      to_email: recipientEmail,
+      subject,
+      message: text,
+      html,
+    },
   };
 
-  const info = await transporter.sendMail(message);
-  return { to, info };
+  const response = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`EmailJS request failed: ${errorText}`);
+  }
+
+  const data = await response.json();
+  return {
+    to: recipientEmail,
+    info: {
+      messageId: data?.id || null,
+    },
+  };
 };
 
 const sendEmailToRecipients = async (recipients = [], donation = {}) => {
@@ -105,4 +113,4 @@ Please log in to the ResQPlate dashboard to claim this donation.`;
   return Promise.all(sendPromises);
 };
 
-module.exports = { sendEmailToRecipients };
+module.exports = { sendEmail, sendEmailToRecipients };

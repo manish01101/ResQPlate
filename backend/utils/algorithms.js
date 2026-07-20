@@ -8,7 +8,7 @@
  */
 function haversineDistance(lat1, lng1, lat2, lng2) {
   const R = 6371; // Earth's radius in km
-  const toRad = deg => (deg * Math.PI) / 180;
+  const toRad = (deg) => (deg * Math.PI) / 180;
 
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
@@ -40,18 +40,15 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
  * @returns {Array}  Ranked volunteer list with scores
  */
 function modFireflyAlgorithm(donation, volunteers, options = {}) {
-  const {
-    gamma = 0.1,
-    beta0 = 1.0,
-    relThreshold = 0.5,
-    topK = 3
-  } = options;
+  const { gamma = 0.1, beta0 = 1.0, relThreshold = 0.5, topK = 3 } = options;
 
   const [donorLng, donorLat] = donation.location.coordinates;
-  const urgency = donation.urgencyScore || 0.5;
+  const urgency = Number.isFinite(Number(donation.urgencyScore))
+    ? Number(donation.urgencyScore)
+    : Number(donation.urgency ?? 0.5);
 
   // Step 1: Calculate distance and base attractiveness for each volunteer
-  const scored = volunteers.map(volunteer => {
+  const scored = volunteers.map((volunteer) => {
     const [volLng, volLat] = volunteer.location.coordinates;
 
     // Haversine distance (km)
@@ -68,12 +65,12 @@ function modFireflyAlgorithm(donation, volunteers, options = {}) {
       distanceKm: r,
       beta,
       intensity,
-      reliabilityScore: volunteer.reliabilityScore || 0.5
+      reliabilityScore: volunteer.reliabilityScore || 0.5,
     };
   });
 
   // Step 2: Apply Reliability Mutation — penalize unreliable volunteers
-  const mutated = scored.map(entry => {
+  const mutated = scored.map((entry) => {
     let effectiveScore = entry.intensity;
 
     if (entry.reliabilityScore < relThreshold) {
@@ -84,7 +81,7 @@ function modFireflyAlgorithm(donation, volunteers, options = {}) {
 
     // Final weighted score: combines intensity + reliability bonus
     const finalScore = parseFloat(
-      (effectiveScore * 0.6 + entry.reliabilityScore * 0.4).toFixed(4)
+      (effectiveScore * 0.6 + entry.reliabilityScore * 0.4).toFixed(4),
     );
 
     return { ...entry, finalScore };
@@ -100,7 +97,7 @@ function modFireflyAlgorithm(donation, volunteers, options = {}) {
     name: entry.volunteer.name,
     distanceKm: entry.distanceKm,
     reliabilityScore: entry.reliabilityScore,
-    faScore: entry.finalScore
+    faScore: entry.finalScore,
   }));
 }
 

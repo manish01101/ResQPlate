@@ -141,6 +141,11 @@ router.post("/", protect, authorize("donor"), async (req, res) => {
       image_url,
     });
 
+    const donationWithUrgency = {
+      ...donation.toObject(),
+      urgencyScore: donation.urgencyScore ?? 0.5,
+    };
+
     // Run mod-FA to find top volunteers to notify
     const [donorLng, donorLat] = location.coordinates;
     const nearbyVolunteers = await User.find({
@@ -158,9 +163,13 @@ router.post("/", protect, authorize("donor"), async (req, res) => {
     let notificationResults = [];
 
     if (nearbyVolunteers.length > 0) {
-      recommendedRecipients = modFireflyAlgorithm(donation, nearbyVolunteers, {
-        topK: 3,
-      }).map((recipient) => {
+      recommendedRecipients = modFireflyAlgorithm(
+        donationWithUrgency,
+        nearbyVolunteers,
+        {
+          topK: 3,
+        },
+      ).map((recipient) => {
         const volunteer = nearbyVolunteers.find(
           (vol) => vol._id.toString() === recipient.volunteerId.toString(),
         );
@@ -181,7 +190,7 @@ router.post("/", protect, authorize("donor"), async (req, res) => {
 
       notificationResults = await sendEmailToRecipients(
         recommendedRecipients,
-        donation,
+        donationWithUrgency,
       );
     }
 
