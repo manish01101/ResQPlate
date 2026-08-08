@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
+    "seed": "node seeds.js",
     "test": "jest --runInBand --forceExit",
     "test:watch": "jest --watch",
     "benchmark:geo": "node tests/scripts/geo-index-benchmark.js",
