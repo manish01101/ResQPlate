@@ -34,6 +34,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [impact, setImpact] = useState(null);
+  const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,12 +48,13 @@ export default function DashboardPage() {
           const res = await api
             .get("/donations/my")
             .catch(() => api.get("/donations"));
-          const donations = res.data?.data || [];
+          const donationList = res.data?.data || [];
+          setDonations(donationList);
 
           setStats({
-            totalPosted: donations.length,
-            active: donations.filter((d) => d.status === "available").length,
-            completed: donations.filter(
+            totalPosted: donationList.length,
+            active: donationList.filter((d) => d.status === "available").length,
+            completed: donationList.filter(
               (d) => d.status === "completed" || d.status === "claimed",
             ).length,
           });
@@ -237,6 +239,104 @@ export default function DashboardPage() {
                   CO₂ equivalent emissions prevented
                 </p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Donor: persistent top-NGO matches per donation */}
+        {donations.length > 0 && user?.role === "donor" && (
+          <div className="mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100 mb-1 sm:mb-2">
+              🤝 Your Matches
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mb-4 sm:mb-6">
+              The top verified NGOs mod-FA ranked for each of your donations.
+            </p>
+            <div className="space-y-4">
+              {donations.map((d) => {
+                const matches = Array.isArray(d.recommendedRecipients)
+                  ? d.recommendedRecipients
+                  : [];
+                return (
+                  <div
+                    key={d._id}
+                    className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-sm p-5"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <h3 className="font-bold text-gray-900 dark:text-slate-100">
+                        {d.food_title}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300">
+                          ● {d.status}
+                        </span>
+                        {d.surgeRadiusKm ? (
+                          <span className="text-xs font-semibold text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
+                            searched {d.surgeRadiusKm} km
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {matches.length > 0 ? (
+                      <>
+                        <div className="space-y-2">
+                          {matches.map((m) => (
+                            <div
+                              key={m.volunteerId || m.name}
+                              className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 dark:border-emerald-800/60 bg-emerald-50/60 dark:bg-emerald-900/15 px-4 py-2.5"
+                            >
+                              <div className="min-w-0">
+                                <p className="font-semibold text-emerald-900 dark:text-emerald-100 truncate">
+                                  <span className="text-emerald-500 font-bold mr-1.5">
+                                    #{m.rank}
+                                  </span>
+                                  {m.name}
+                                </p>
+                                <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                                  {m.distanceKm?.toFixed(1)} km · reliability{" "}
+                                  {Math.round((m.reliabilityScore || 0) * 100)}%
+                                </p>
+                              </div>
+                              <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300 whitespace-nowrap">
+                                {((m.faScore ?? 0) * 100).toFixed(0)}% match
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <details className="mt-3">
+                          <summary className="cursor-pointer text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
+                            Why this match?
+                          </summary>
+                          <div className="mt-2 space-y-1.5 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700 p-3 text-xs text-gray-600 dark:text-slate-300">
+                            {matches.map((m) => (
+                              <p key={m.volunteerId || m.name}>
+                                <span className="font-bold">
+                                  #{m.rank} {m.name}:
+                                </span>{" "}
+                                urgency {(m.urgencyScore ?? 0.5) * 100}% ·
+                                distance factor {m.beta?.toFixed(2) ?? "—"} ·
+                                reliability {Math.round((m.reliabilityScore || 0) * 100)}%
+                                → faScore {((m.faScore ?? 0) * 100).toFixed(0)}%
+                              </p>
+                            ))}
+                            <p className="pt-1 text-gray-400 dark:text-slate-500">
+                              Scores combine food urgency, distance decay and
+                              reliability; the surge radius widens for
+                              expiring food.
+                            </p>
+                          </div>
+                        </details>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-400 dark:text-slate-500 bg-gray-50 dark:bg-slate-800/40 rounded-xl px-4 py-3">
+                        No verified NGO matches were found for this donation.
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

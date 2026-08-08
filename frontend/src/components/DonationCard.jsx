@@ -1,6 +1,6 @@
 import React from "react";
 import { formatExpiry } from "../utils/haversine";
-import { MapPin, Clock, Leaf, AlertCircle } from "lucide-react";
+import { MapPin, Clock, Leaf, AlertCircle, Flame } from "lucide-react";
 
 export default function DonationCard({
   donation,
@@ -14,6 +14,13 @@ export default function DonationCard({
     donation.food_type === "vegetarian" || donation.food_type === "vegan";
   const isExpiringSoon =
     new Date(donation.expiry_datetime) - new Date() < 30 * 60 * 1000; // Less than 30 min
+
+  const minutesLeft = Math.max(
+    0,
+    Math.floor((new Date(donation.expiry_datetime) - Date.now()) / 60000),
+  );
+  const urgencyLabel =
+    minutesLeft <= 120 ? "Critical" : minutesLeft <= 360 ? "High" : minutesLeft <= 720 ? "Medium" : null;
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden flex flex-col hover:shadow-lg transition-all duration-200 group">
@@ -58,6 +65,18 @@ export default function DonationCard({
 
         {/* Info Tags */}
         <div className="flex flex-wrap gap-2 mb-4">
+          {urgencyLabel && (
+            <div
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border whitespace-nowrap ${
+                minutesLeft <= 120
+                  ? "bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800"
+                  : "bg-orange-50 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800"
+              }`}
+            >
+              <Flame className="w-3.5 h-3.5" />
+              {urgencyLabel}
+            </div>
+          )}
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 text-xs font-semibold border border-blue-200 dark:border-blue-800">
             <span>👥</span>
             <span className="whitespace-nowrap">{donation.quantity}</span>

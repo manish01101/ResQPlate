@@ -1,19 +1,29 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
-import HomePage from "./pages/HomePage";
-import AboutPage from "./pages/AboutPage";
-import ContactPage from "./pages/ContactPage";
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import DashboardPage from "./pages/DashboardPage";
-import FindFoodPage from "./pages/FindFoodPage";
-import DonatePage from "./pages/DonatePage";
-import MyClaimsPage from "./pages/MyClaimsPage";
-import AdminPage from "./pages/AdminPage";
-import VerifyPage from "./pages/VerifyPage";
 import ResQBot from "./components/ResQBot";
+
+// Route-level code splitting: only load a page when it's first visited
+const HomePage = lazy(() => import("./pages/HomePage"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
+const ContactPage = lazy(() => import("./pages/ContactPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const FindFoodPage = lazy(() => import("./pages/FindFoodPage"));
+const DonatePage = lazy(() => import("./pages/DonatePage"));
+const MyClaimsPage = lazy(() => import("./pages/MyClaimsPage"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
+const VerifyPage = lazy(() => import("./pages/VerifyPage"));
+
+function PageLoader() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+    </div>
+  );
+}
 
 function PrivateRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -61,7 +71,8 @@ function AppRoutes() {
       <Navbar />
 
       <main className="flex-grow w-full flex flex-col">
-        <Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
           {/* Public Pages */}
           <Route path="/" element={<HomePage />} />
           <Route path="/about" element={<AboutPage />} />
@@ -135,7 +146,8 @@ function AppRoutes() {
             path="*"
             element={<Navigate to={user ? "/dashboard" : "/"} replace />}
           />
-        </Routes>
+          </Routes>
+        </Suspense>
       </main>
 
       <ResQBot />

@@ -165,7 +165,11 @@ export default function FindFoodPage() {
       if (sortBy === "urgency")
         return a.urgencyBucket - b.urgencyBucket || a.minutesLeft - b.minutesLeft;
       if (sortBy === "distance") return a.distanceKm - b.distanceKm;
-      return 0; // newest
+      // newest
+      return (
+        new Date(b.createdAt ?? 0).getTime() -
+        new Date(a.createdAt ?? 0).getTime()
+      );
     });
 
   // Handle Dragging the Red Marker

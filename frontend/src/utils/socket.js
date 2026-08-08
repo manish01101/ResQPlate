@@ -1,21 +1,4 @@
-// Minimal event-emitter for the WebSocket wrapper
-class Emitter {
-  constructor() {
-    this.listeners = new Map();
-  }
-  on(type, cb) {
-    if (!this.listeners.has(type)) this.listeners.set(type, new Set());
-    this.listeners.get(type).add(cb);
-    return () => this.off(type, cb);
-  }
-  off(type, cb) {
-    if (!cb) this.listeners.delete(type);
-    else this.listeners.get(type)?.delete(cb);
-  }
-  dispatch(type, ...args) {
-    this.listeners.get(type)?.forEach((cb) => cb(...args));
-  }
-}
+import { Emitter } from "./emitter";
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL
   ? import.meta.env.VITE_BACKEND_URL.replace(/\/api$/, "").replace(/^http/, "ws")

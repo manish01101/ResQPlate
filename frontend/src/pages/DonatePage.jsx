@@ -710,15 +710,26 @@ export default function DonatePage() {
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <h4 className="text-lg font-extrabold text-emerald-900 dark:text-emerald-100">
-                          Recommended recipients
+                          Match breakdown
                         </h4>
                         <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
-                          These are the top matches for your donation.
+                          How the top matches were ranked for your donation.
                         </p>
                       </div>
                       <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-3 py-1 text-sm font-bold text-emerald-700 dark:text-emerald-300">
                         {recommendedRecipients.length} match
                         {recommendedRecipients.length > 1 ? "es" : ""}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 rounded-xl border border-emerald-100 dark:border-emerald-800/60 bg-emerald-50/70 dark:bg-emerald-900/20 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-200">
+                      <span className="font-bold">Surge search radius: </span>
+                      {result?.surgeRadiusKm
+                        ? `${result.surgeRadiusKm} km`
+                        : `${recommendedRecipients[0]?.surgeRadiusKm ?? "—"} km`}
+                      <span className="text-emerald-600 dark:text-emerald-400">
+                        {" "}
+                        (more urgent food reaches further)
                       </span>
                     </div>
 
@@ -738,11 +749,22 @@ export default function DonatePage() {
                               </p>
                             </div>
                             <div className="text-sm text-emerald-700 dark:text-emerald-300 sm:text-right">
-                              <p>{recipient.distanceKm?.toFixed(1)} km away</p>
+                              <p className="font-bold">
+                                Match score:{" "}
+                                {((recipient.faScore ?? 0) * 100).toFixed(0)}%
+                              </p>
+                              <p>
+                                {recipient.distanceKm?.toFixed(1)} km · distance
+                                factor {(recipient.beta ?? 0).toFixed(2)}
+                              </p>
                               <p>
                                 Reliability:{" "}
                                 {Math.round(
                                   (recipient.reliabilityScore || 0) * 100,
+                                )}
+                                % · urgency{" "}
+                                {Math.round(
+                                  (recipient.urgencyScore || 0) * 100,
                                 )}
                                 %
                               </p>
@@ -795,7 +817,7 @@ export default function DonatePage() {
                     onClick={() => navigate("/dashboard")}
                     className="px-8 py-3.5 rounded-xl shadow-lg shadow-emerald-600/20 text-base font-bold text-white bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto transition-all hover:-translate-y-0.5"
                   >
-                    Return to Dashboard
+                    View matches on Dashboard
                   </button>
                   <button
                     type="button"
