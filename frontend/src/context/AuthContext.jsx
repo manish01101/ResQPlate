@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import api from "../utils/api";
+import socket from "../utils/socket";
 
 const AuthContext = createContext(null);
 
@@ -24,6 +25,7 @@ export function AuthProvider({ children }) {
     const res = await api.post("/auth/login", { email, password });
     localStorage.setItem("resqplate_token", res.data.token);
     setUser(res.data.user);
+    socket.refresh();
     return res.data.user;
   };
 
@@ -31,12 +33,14 @@ export function AuthProvider({ children }) {
     const res = await api.post("/auth/register", data);
     localStorage.setItem("resqplate_token", res.data.token);
     setUser(res.data.user);
+    socket.refresh();
     return res.data.user;
   };
 
   const logout = () => {
     localStorage.removeItem("resqplate_token");
     setUser(null);
+    socket.disconnect();
   };
 
   const refreshUser = async () => {

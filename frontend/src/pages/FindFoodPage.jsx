@@ -42,6 +42,8 @@ export default function FindFoodPage() {
   const [donations, setDonations] = useState([]);
   const [radius, setRadius] = useState(20);
   const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("urgency");
   const [userCoords, setUserCoords] = useState(null);
 
   // UI States
@@ -130,12 +132,41 @@ export default function FindFoodPage() {
     fetchDonations();
   }, [fetchDonations]);
 
-  // Filter Donations
-  const filteredDonations = donations.filter((d) => {
-    const isNotExpired = new Date(d.expiry_datetime) > new Date();
-    const matchesFilter = filter === "all" || d.food_type === filter;
-    return isNotExpired && matchesFilter;
-  });
+  // Filter + enrich Donations
+  const filteredDonations = donations
+    .filter((d) => {
+      const isNotExpired = new Date(d.expiry_datetime) > new Date();
+      const matchesFilter = filter === "all" || d.food_type === filter;
+      const query = search.trim().toLowerCase();
+      const matchesSearch =
+        !query ||
+        (d.food_title || "").toLowerCase().includes(query) ||
+        (d.location?.address || "").toLowerCase().includes(query);
+      return isNotExpired && matchesFilter && matchesSearch;
+    })
+    .map((d) => {
+      const minutesLeft = Math.max(
+        0,
+        Math.floor((new Date(d.expiry_datetime) - Date.now()) / 60000),
+      );
+      const dist = d.location?.coordinates
+        ? haversineDistance(
+            userCoords.lat,
+            userCoords.lng,
+            d.location.coordinates[1],
+            d.location.coordinates[0],
+          )
+        : Infinity;
+      const urgencyBucket =
+        minutesLeft <= 120 ? 0 : minutesLeft <= 360 ? 1 : minutesLeft <= 720 ? 2 : 3;
+      return { ...d, minutesLeft, distanceKm: dist, urgencyBucket };
+    })
+    .sort((a, b) => {
+      if (sortBy === "urgency")
+        return a.urgencyBucket - b.urgencyBucket || a.minutesLeft - b.minutesLeft;
+      if (sortBy === "distance") return a.distanceKm - b.distanceKm;
+      return 0; // newest
+    });
 
   // Handle Dragging the Red Marker
   const eventHandlers = useMemo(
@@ -292,6 +323,20 @@ export default function FindFoodPage() {
               <strong className="text-emerald-600 dark:text-emerald-400">
                 {radius} km
               </strong>
+            </p>
+          </div>
+
+          {/* Search */}
+          <div>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="🔍 Search food or area..."
+              className="w-full rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm text-gray-900 dark:text-slate-100 placeholder-gray-400 shadow-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10"
+            />
+            <p className="mt-1 text-[11px] text-gray-400 dark:text-slate-500">
+              Matches food title or pickup address.
             </p>
           </div>
 
@@ -533,7 +578,7 @@ export default function FindFoodPage() {
           </div>
 
           {/* Moved Food Type Filters */}
-          <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
             <button
               className={filterBtnClass(filter === "all")}
               onClick={() => setFilter("all")}
@@ -552,6 +597,15 @@ export default function FindFoodPage() {
             >
               🍗 Non-Veg
             </button>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="ml-1 px-3 py-2 rounded-xl text-sm font-bold border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="urgency">⏱️ Most Urgent</option>
+              <option value="distance">📏 Nearest First</option>
+              <option value="newest">🕒 Newest</option>
+            </select>
           </div>
         </div>
 
@@ -573,14 +627,9 @@ export default function FindFoodPage() {
                 key={d._id}
                 donation={d}
                 distanceKm={
-                  d.location?.coordinates
-                    ? haversineDistance(
-                        userCoords.lat,
-                        userCoords.lng,
-                        d.location.coordinates[1],
-                        d.location.coordinates[0],
-                      ).toFixed(2)
-                    : null
+                  d.distanceKm === Infinity
+                    ? null
+                    : d.distanceKm.toFixed(2)
                 }
                 onClaim={handleClaim}
                 userRole={user?.role}

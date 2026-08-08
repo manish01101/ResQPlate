@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 import ActivePickupMap from "../components/ActivePickupMap";
+import ClaimChat from "../components/ClaimChat";
+import RatingModal from "../components/RatingModal";
+import socket from "../utils/socket";
 import { Loader, Clock, AlertCircle, Trash2, Phone } from "lucide-react";
 
 export default function MyClaimsPage() {
@@ -14,19 +17,15 @@ export default function MyClaimsPage() {
   const [error, setError] = useState("");
   const [donorTab, setDonorTab] = useState("requests");
   const [activePickup, setActivePickup] = useState(null);
+  const [activeChat, setActiveChat] = useState(null);
+  const [ratingClaim, setRatingClaim] = useState(null);
   const [pinInputs, setPinInputs] = useState({});
 
   const verificationBlocked =
     (user?.role === "donor" || user?.role === "ngo") && !user?.isVerified;
 
-  useEffect(() => {
-    if (user) {
-      fetchAllData();
-    }
-  }, [user]);
-
-  const fetchAllData = async () => {
-    setLoading(true);
+  const fetchAllData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       if (verificationBlocked) {
         setClaims([]);
@@ -49,6 +48,20 @@ export default function MyClaimsPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (user) {
+      fetchAllData();
+    }
+  }, [user]);
+
+  // Live refresh when a claim status changes, notified via raw WebSocket
+  useEffect(() => {
+    if (!user) return;
+    const handler = () => fetchAllData(true);
+    socket.on("notification", handler);
+    return () => socket.off("notification", handler);
+  }, [user]);
 
   const handleClaimAction = async (claimId, action, payload = {}) => {
     try {
@@ -323,6 +336,29 @@ export default function MyClaimsPage() {
                         </button>
                       )}
 
+                      {/* Chat Button - open once accepted */}
+                      {(claim.status === "accepted" ||
+                        claim.status === "pending" ||
+                        claim.status === "completed") && (
+                        <button
+                          onClick={() => setActiveChat(claim)}
+                          className="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors shadow-md hover:shadow-lg active:translate-y-0.5 text-sm"
+                        >
+                          💬 Chat with{" "}
+                          {user?.role === "donor" ? "NGO" : "Donor"}
+                        </button>
+                      )}
+
+                      {/* Rate the other party once completed */}
+                      {claim.status === "completed" && (
+                        <button
+                          onClick={() => setRatingClaim(claim)}
+                          className="w-full px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg transition-colors shadow-md active:translate-y-0.5 text-sm"
+                        >
+                          ⭐ Rate this pickup
+                        </button>
+                      )}
+
                       {/* NGO OTP Input - Accepted Status */}
                       {user?.role === "ngo" && claim.status === "accepted" && (
                         <div className="flex flex-col gap-2">
@@ -442,6 +478,18 @@ export default function MyClaimsPage() {
             claim={activePickup}
             userRole={user.role}
             onClose={() => setActivePickup(null)}
+          />
+        )}
+
+        {activeChat && (
+          <ClaimChat claim={activeChat} onClose={() => setActiveChat(null)} />
+        )}
+
+        {ratingClaim && (
+          <RatingModal
+            claim={ratingClaim}
+            onClose={() => setRatingClaim(null)}
+            onRated={() => fetchAllData(true)}
           />
         )}
       </div>

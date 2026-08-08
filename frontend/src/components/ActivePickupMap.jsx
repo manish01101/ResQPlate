@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import RoutingMachine from "./RoutingMachine";
 import socket from "../utils/socket";
@@ -39,6 +39,7 @@ function MapBoundsFitter({ pos1, pos2 }) {
 export default function ActivePickupMap({ claim, userRole, onClose }) {
   const [ngoLocation, setNgoLocation] = useState(null);
   const [routeInfo, setRouteInfo] = useState({ distance: "...", time: "..." });
+  const mapRef = useRef(null);
 
   const donorCoords = {
     lat: claim.donation_id.location.coordinates[1],
@@ -46,7 +47,10 @@ export default function ActivePickupMap({ claim, userRole, onClose }) {
   };
 
   useEffect(() => {
-    socket.emit("joinPickup", claim._id);
+    const join = () => socket.emit("joinPickup", claim._id);
+    const onNgoMoved = (msg) => setNgoLocation(msg?.coords ?? msg);
+    socket.on("connect", join);
+    join();
 
     let watchId;
     if (userRole === "ngo") {
@@ -65,12 +69,14 @@ export default function ActivePickupMap({ claim, userRole, onClose }) {
         );
       }
     } else if (userRole === "donor") {
-      socket.on("ngoLocationMoved", (newCoords) => setNgoLocation(newCoords));
+      socket.on("ngoLocationMoved", onNgoMoved);
     }
 
     return () => {
       if (watchId) navigator.geolocation.clearWatch(watchId);
-      socket.off("ngoLocationMoved");
+      socket.off("connect", join);
+      socket.emit("leavePickup", claim._id);
+      socket.off("ngoLocationMoved", onNgoMoved);
     };
   }, [claim._id, userRole]);
 
@@ -119,6 +125,7 @@ export default function ActivePickupMap({ claim, userRole, onClose }) {
           )}
 
           <MapContainer
+            ref={mapRef}
             center={[donorCoords.lat, donorCoords.lng]}
             zoom={15}
             className="h-full w-full"

@@ -33,6 +33,7 @@ export default function DashboardPage() {
     (user?.role === "donor" || user?.role === "ngo") && !user?.isVerified;
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+  const [impact, setImpact] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -65,6 +66,14 @@ export default function DashboardPage() {
             pending: claims.filter((c) => c.status === "pending").length,
             completed: claims.filter((c) => c.status === "completed").length,
           });
+        }
+
+        // Fetch impact metrics for donors and NGOs
+        if (user?.role === "donor" || user?.role === "ngo") {
+          const impactRes = await api
+            .get("/users/impact")
+            .catch(() => null);
+          if (impactRes?.data?.data) setImpact(impactRes.data.data);
         }
       } catch (error) {
         console.error("Error fetching dashboard stats:", error);
@@ -187,6 +196,50 @@ export default function DashboardPage() {
       <main className="-mt-12 sm:-mt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         {/* Dynamic Stats Section based on Role */}
         {renderStats()}
+
+        {/* Impact Metrics for Donor & NGO */}
+        {impact && (user?.role === "donor" || user?.role === "ngo") && (
+          <div className="mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100 mb-4 sm:mb-6">
+              🌍 Your Impact
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/20 border border-emerald-200 dark:border-emerald-700 rounded-2xl shadow-sm p-6">
+                <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                  Meals Rescued
+                </p>
+                <p className="mt-3 text-3xl sm:text-4xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                  {impact.mealsServed?.toLocaleString() || 0}
+                </p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                  people fed with surplus food
+                </p>
+              </div>
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/20 border border-green-200 dark:border-green-700 rounded-2xl shadow-sm p-6">
+                <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-green-700 dark:text-green-300">
+                  Food Saved
+                </p>
+                <p className="mt-3 text-3xl sm:text-4xl font-extrabold text-green-600 dark:text-green-400">
+                  {impact.kgFood || 0} kg
+                </p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                  diverted from landfills
+                </p>
+              </div>
+              <div className="bg-gradient-to-br from-lime-50 to-green-50 dark:from-lime-900/30 dark:to-green-900/20 border border-lime-200 dark:border-lime-700 rounded-2xl shadow-sm p-6">
+                <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-lime-700 dark:text-lime-300">
+                  CO₂ Offset
+                </p>
+                <p className="mt-3 text-3xl sm:text-4xl font-extrabold text-lime-600 dark:text-lime-400">
+                  {impact.co2Offset?.toLocaleString() || 0} kg
+                </p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                  CO₂ equivalent emissions prevented
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="mt-8">

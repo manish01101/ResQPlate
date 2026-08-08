@@ -4,6 +4,7 @@ const User = require("../models/user");
 const Donation = require("../models/donation");
 const Claim = require("../models/claim");
 const { protect, authorize } = require("../middleware/auth");
+const { createAndSendNotification } = require("../utils/notify");
 
 // All admin routes require admin role
 router.use(protect, authorize("admin"));
@@ -68,6 +69,17 @@ router.put("/users/:id/verify", async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
+
+    await createAndSendNotification({
+      recipient: user._id,
+      sender: req.user._id,
+      type: "account_verified",
+      title: "Account verified",
+      message: `Congratulations ${user.name}! Your account was verified. You can now donate and claim pickups.`,
+      link: "/dashboard",
+      relatedId: user._id,
+    });
+
     res.json({
       success: true,
       message: `${user.name} verified successfully`,
@@ -94,6 +106,17 @@ router.put("/users/:id/reject", async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
+
+    await createAndSendNotification({
+      recipient: user._id,
+      sender: req.user._id,
+      type: "account_rejected",
+      title: "Verification rejected",
+      message: `Your account verification was rejected. Please re-submit a valid document.`,
+      link: "/verify",
+      relatedId: user._id,
+    });
+
     res.json({ success: true, message: "Verification rejected", data: user });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

@@ -85,6 +85,8 @@ const UserSchema = new mongoose.Schema(
     },
     totalPickups: { type: Number, default: 0 },
     totalCancellations: { type: Number, default: 0 },
+    avgRating: { type: Number, default: null },
+    totalRatings: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

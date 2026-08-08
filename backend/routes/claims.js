@@ -5,6 +5,7 @@ const Donation = require("../models/donation");
 const User = require("../models/user");
 const { protect, authorize } = require("../middleware/auth");
 const { haversineDistance } = require("../utils/algorithms");
+const { createAndSendNotification } = require("../utils/notify");
 
 // @route  POST /api/claims
 // @desc   NGO/Volunteer claims a donation
@@ -63,6 +64,18 @@ router.post("/", protect, authorize("ngo"), async (req, res) => {
     donation.claimed_at = new Date();
     await donation.save();
 
+    // Notify the donor in real-time that a volunteer wants their food
+    await createAndSendNotification({
+      recipient: donation.donor_id,
+      sender: req.user._id,
+      type: "claim_request",
+      title: "New pickup request",
+      message: `${req.user.name} has requested to claim "${donation.food_title}".`,
+      link: "/my-claims",
+      relatedId: donation._id,
+      data: { claimId: claim._id },
+    });
+
     res.status(201).json({ success: true, data: claim });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -92,6 +105,18 @@ router.put("/:id/accept", protect, authorize("donor"), async (req, res) => {
 
     await Donation.findByIdAndUpdate(claim.donation_id, {
       status: "claimed",
+    });
+
+    // Notify the volunteer that their request was approved + share PIN
+    await createAndSendNotification({
+      recipient: claim.receiver_id,
+      sender: req.user._id,
+      type: "claim_accepted",
+      title: "Claim approved!",
+      message: `Your request for "${claim.donation_id.food_title}" was approved. Share the pickup PIN with the donor when you arrive.`,
+      link: "/my-claims",
+      relatedId: claim.donation_id._id,
+      data: { claimId: claim._id, pickupPin: generatedPin },
     });
 
     res.json({ success: true, data: claim });
@@ -134,6 +159,20 @@ const completeClaimHandler = async (req, res) => {
       volunteer.updateReliability();
       await volunteer.save();
     }
+
+    const donor = await User.findById(claim.donation_id.donor_id);
+
+    // Notify the donor pickup was completed
+    await createAndSendNotification({
+      recipient: donor?._id,
+      sender: claim.receiver_id,
+      type: "claim_completed",
+      title: "Pickup completed!",
+      message: `${volunteer?.name || "A volunteer"} has verified pickup of "${claim.donation_id.food_title}".`,
+      link: "/my-claims",
+      relatedId: claim.donation_id._id,
+      data: { claimId: claim._id },
+    });
 
     res.json({
       success: true,
@@ -183,6 +222,20 @@ router.put("/:id/cancel", protect, async (req, res) => {
       volunteer.updateReliability();
       await volunteer.save();
     }
+
+    // Notify the counterparty depending on who cancelled/rejected
+    const isDonor = req.user.role === "donor";
+    const recipientId = isDonor ? claim.receiver_id : claim.donation_id.donor_id;
+    await createAndSendNotification({
+      recipient: recipientId,
+      sender: req.user._id,
+      type: isDonor ? "claim_rejected" : "claim_cancelled",
+      title: isDonor ? "Request rejected" : "Request cancelled",
+      message: `${req.user.name} ${isDonor ? "rejected" : "cancelled"} the request for "${claim.donation_id?.food_title || "a donation"}".`,
+      link: "/my-claims",
+      relatedId: claim.donation_id?._id || null,
+      data: { claimId: claim._id },
+    });
 
     res.json({
       success: true,

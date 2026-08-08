@@ -129,7 +129,21 @@ router.post(
 // @route  GET /api/auth/me
 // @access Private
 router.get("/me", protect, (req, res) => {
-  res.json({ success: true, user: req.user });
+  const user = req.user;
+  res.json({
+    success: true,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isVerified: user.isVerified,
+      verificationStatus: user.verificationStatus,
+      verificationDocument: user.verificationDocument,
+      phone: user.phone,
+      location: user.location,
+    },
+  });
 });
 
 module.exports = router;

@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const User = require("../models/user");
+const Donation = require("../models/donation");
+const Claim = require("../models/claim");
 const { protect } = require("../middleware/auth");
 
 // @route  GET /api/users/profile
@@ -94,4 +96,69 @@ router.post("/verify-submit", protect, async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+// @route  GET /api/users/impact
+// @desc   Environmental + social impact metrics for the logged-in user
+// @access Private
+router.get("/impact", protect, async (req, res) => {
+  try {
+    let donations = [];
+    let claims = [];
+
+    if (req.user.role === "donor") {
+      donations = await Donation.find({ donor_id: req.user._id }).select(
+        "quantity status food_type",
+      );
+    } else if (req.user.role === "ngo") {
+      claims = await Claim.find({
+        receiver_id: req.user._id,
+        status: "completed",
+      }).populate("donation_id", "quantity food_type");
+    }
+
+    // Extract a numeric "servings/meals" figure from free-text quantities
+    const toMeals = (quantity, food_type) => {
+      if (!quantity) return 0;
+      const str = String(quantity).toLowerCase();
+      const numbers = str.match(/\d+(\.\d+)?/g)?.map(Number) || [];
+      const base = numbers[0] || 0;
+      if (/\b(serv|meal|person|plate|people)\b/.test(str)) return Math.floor(base);
+      if (/\btray\b|\bkg\b|\bkg\b|\bkilogram/.test(str)) {
+        // ~2.5 meals per kg of food; trays ~ 15 meals
+        const perUnit = /\btray/.test(str) ? 15 : 2.5;
+        return Math.floor(base * perUnit);
+      }
+      // Fallback: treat the raw number as servings
+      return Math.floor(base);
+    };
+
+    const selected =
+      req.user.role === "donor"
+        ? donations
+            .filter((d) => d.status === "completed")
+            .map((d) => d.toObject())
+        : claims.map((c) => c.donation_id?.toObject?.() || {});
+
+    let meals = 0;
+    selected.forEach((d) => {
+      meals += toMeals(d?.quantity, d?.food_type);
+    });
+
+    const mealsServed = meals;
+    const kgFood = Math.round(meals * 0.4); // ~0.4 kg of food per meal
+    const co2Offset = Math.round(kgFood * 2.5); // ~2.5 kg CO₂e saved per kg food
+
+    res.json({
+      success: true,
+      data: {
+        mealsServed,
+        kgFood,
+        co2Offset,
+        pickups: req.user.role === "ngo" ? claims.length : selected.length,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

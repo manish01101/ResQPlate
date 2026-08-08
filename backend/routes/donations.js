@@ -5,6 +5,7 @@ const User = require("../models/user");
 const { protect, authorize } = require("../middleware/auth");
 const { modFireflyAlgorithm } = require("../utils/algorithms");
 const { sendEmailToRecipients } = require("../utils/notifications");
+const { notifyUsers } = require("../utils/notify");
 
 // @route  GET /api/donations
 // @desc   Get all available donations (Standard list)
@@ -192,6 +193,17 @@ router.post("/", protect, authorize("donor"), async (req, res) => {
         recommendedRecipients,
         donationWithUrgency,
       );
+
+      // Push in-app real-time notifications to recommended volunteers
+      await notifyUsers({
+        recipients: recommendedRecipients.map((r) => r.volunteerId),
+        sender: req.user._id,
+        type: "new_donation",
+        title: "New donation available",
+        message: `"${donation.food_title}" was posted nearby. Open Find Food to claim it!`,
+        link: "/find-food",
+        relatedId: donation._id,
+      });
     }
 
     const savedDonation = await Donation.findById(donation._id);

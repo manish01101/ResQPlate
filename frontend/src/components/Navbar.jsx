@@ -3,6 +3,8 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Logo from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
+import NotificationBell from "./NotificationBell";
+import ToastContainer from "./ToastContainer";
 import { Menu, X } from "lucide-react";
 
 export default function Navbar() {
@@ -115,6 +117,7 @@ export default function Navbar() {
           {/* RIGHT SIDE: Theme Toggle + Auth (Desktop) + Mobile Menu Button */}
           <div className="flex items-center gap-2 md:gap-4">
             <ThemeToggle />
+            {user && <NotificationBell />}
 
             {/* Desktop Auth Buttons - Hidden on Mobile */}
             <div className="hidden md:flex md:items-center md:gap-4">
@@ -292,6 +295,7 @@ export default function Navbar() {
           </div>
         </div>
       )}
+      <ToastContainer />
     </nav>
   );
 }
