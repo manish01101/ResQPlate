@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const Claim = require("../models/claim");
 const Donation = require("../models/donation");
 const ChatMessage = require("../models/chatMessage");
@@ -24,6 +25,11 @@ async function assertParticipant(claim, userId) {
 // @access Private (participants + admin)
 router.get("/:claimId", protect, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.claimId))
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid claim ID" });
+
     const claim = await Claim.findById(req.params.claimId);
     if (!claim)
       return res
@@ -52,6 +58,11 @@ router.get("/:claimId", protect, async (req, res) => {
 // @access Private (participant + admin)
 router.post("/:claimId", protect, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.claimId))
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid claim ID" });
+
     const claim = await Claim.findById(req.params.claimId);
     if (!claim)
       return res
@@ -110,6 +121,11 @@ router.post("/:claimId", protect, async (req, res) => {
 // @access Private (participant)
 router.put("/:claimId/read", protect, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.claimId))
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid claim ID" });
+
     const claim = await Claim.findById(req.params.claimId);
     if (!claim)
       return res

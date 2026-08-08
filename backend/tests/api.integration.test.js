@@ -3,7 +3,7 @@ process.env.JWT_SECRET = "test_secret_key_for_jest_123";
 const request = require("supertest");
 const express = require("express");
 const mongoose = require("mongoose");
-const { MongoMemoryServer } = require("mongodb-memory-server");
+const { MongoMemoryReplSet } = require("mongodb-memory-server");
 
 const User = require("../models/user");
 const Donation = require("../models/donation");
@@ -20,7 +20,10 @@ let app;
 // SETUP & TEARDOWN
 // ==========================================
 beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
+  // Replica set (1 node) — required for claim flow transactions
+  mongoServer = await MongoMemoryReplSet.create({
+    replSet: { count: 1, storageEngine: "wiredTiger" },
+  });
   const uri = mongoServer.getUri();
   await mongoose.connect(uri);
 
@@ -201,6 +204,58 @@ describe("Donation Routes", () => {
       detailResponse.body.data.recommendedRecipients.length,
     ).toBeGreaterThan(0);
   });
+
+  test("returns surge radius snapshot and match ranking breakdown for donor", async () => {
+    await User.create({
+      name: "Nearby NGO",
+      email: "nearby.ranking@test.com",
+      password: "password123",
+      role: "ngo",
+      phone: "6666666666",
+      isVerified: true,
+      reliabilityScore: 0.9,
+      location: {
+        type: "Point",
+        coordinates: [88.3641, 22.5728],
+        address: "Kolkata",
+      },
+    });
+
+    const createResponse = await request(app)
+      .post("/api/donations")
+      .set("Authorization", `Bearer ${donorToken}`)
+      .send({
+        food_title: "Urgent Food",
+        quantity: "2",
+        food_type: "non-vegetarian",
+        expiry_datetime: new Date(Date.now() + 30 * 60000).toISOString(),
+        location: {
+          type: "Point",
+          coordinates: [88.3639, 22.5726],
+          address: "Test St",
+        },
+      });
+
+    expect(createResponse.status).toBe(201);
+    expect(createResponse.body.surgeRadiusKm).toBeGreaterThan(5);
+    expect(createResponse.body.data.surgeRadiusKm).toBeGreaterThan(5);
+
+    const donationId = createResponse.body.data._id;
+    const rankingResponse = await request(app)
+      .get(`/api/donations/ranking/${donationId}`)
+      .set("Authorization", `Bearer ${donorToken}`);
+
+    expect(rankingResponse.status).toBe(200);
+    expect(rankingResponse.body.data.surgeRadiusKm).toBeGreaterThan(5);
+    expect(Array.isArray(rankingResponse.body.data.candidates)).toBe(true);
+  });
+
+  test("invalid ObjectId returns 400 instead of 500", async () => {
+    const response = await request(app)
+      .get("/api/donations/not-an-id")
+      .set("Authorization", `Bearer ${donorToken}`);
+    expect(response.status).toBe(400);
+  });
 });
 
 // ==========================================
@@ -294,5 +349,77 @@ describe("Claim Routes", () => {
 
     const updatedClaim = await Claim.findById(claim._id);
     expect(updatedClaim.status).not.toBe("completed");
+  });
+
+  test("completed claims cannot be completed out of order (400)", async () => {
+    const claim = await Claim.create({
+      donation_id: testDonationId,
+      receiver_id: verifiedNgoId,
+      status: "pending",
+    });
+
+    const response = await request(app)
+      .post(`/api/claims/${claim._id}/verify`)
+      .set("Authorization", `Bearer ${verifiedNgoToken}`)
+      .send({ pickup_pin: "1234" });
+
+    expect(response.status).toBe(400);
+  });
+
+  test("donor rejection does NOT penalize the volunteer's reliability", async () => {
+    const reliableVolunteer = await User.create({
+      name: "Reliable NGO",
+      email: "reliable@test.com",
+      password: "password123",
+      role: "ngo",
+      phone: "3333333333",
+      isVerified: true,
+      reliabilityScore: 0.8,
+      totalPickups: 4,
+      totalCancellations: 1,
+      location: {
+        type: "Point",
+        coordinates: [88.3639, 22.5726],
+        address: "Kolkata",
+      },
+    });
+
+    const claim = await Claim.create({
+      donation_id: testDonationId,
+      receiver_id: reliableVolunteer._id,
+      status: "pending",
+    });
+
+    const donor = await User.create({
+      name: "Donor Cindy",
+      email: "donor.cancel@test.com",
+      password: "password123",
+      role: "donor",
+      phone: "4444444444",
+      isVerified: true,
+      location: {
+        type: "Point",
+        coordinates: [88.3639, 22.5726],
+        address: "Kolkata",
+      },
+    });
+    const donorLogin = await request(app).post("/api/auth/login").send({
+      email: "donor.cancel@test.com",
+      password: "password123",
+    });
+    const donorToken = donorLogin.body.token;
+
+    // Donation belongs to the cancelling donor
+    await Donation.findByIdAndUpdate(testDonationId, { donor_id: donor._id });
+
+    const response = await request(app)
+      .put(`/api/claims/${claim._id}/cancel`)
+      .set("Authorization", `Bearer ${donorToken}`);
+
+    expect(response.status).toBe(200);
+
+    const after = await User.findById(reliableVolunteer._id);
+    expect(after.totalCancellations).toBe(1);
+    expect(after.reliabilityScore).toBe(0.8);
   });
 });

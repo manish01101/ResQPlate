@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const Rating = require("../models/rating");
 const Claim = require("../models/claim");
 const Donation = require("../models/donation");
@@ -16,6 +17,10 @@ router.post("/", protect, async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "claim_id and rating are required" });
+    if (!mongoose.isValidObjectId(claim_id))
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid claim_id" });
 
     const numericRating = Number(rating);
     if (!Number.isInteger(numericRating) || numericRating < 1 || numericRating > 5) {

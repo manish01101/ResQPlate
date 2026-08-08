@@ -27,7 +27,7 @@ const DonationSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["available", "claimed", "expired"],
+      enum: ["available", "claimed", "expired", "completed"],
       default: "available",
     },
     // GeoJSON Point — 2dsphere indexed for $near queries
@@ -58,6 +58,10 @@ const DonationSchema = new mongoose.Schema(
       default: null,
     },
     claimed_at: Date,
+    // Populated by the auto-expiry cron
+    expiredAt: Date,
+    // Surge search radius (km) snapshot used when this donation was matched
+    surgeRadiusKm: Number,
     recommendedRecipients: {
       type: [
         {
@@ -66,6 +70,9 @@ const DonationSchema = new mongoose.Schema(
           name: String,
           distanceKm: Number,
           reliabilityScore: Number,
+          urgencyScore: Number,
+          surgeRadiusKm: Number,
+          beta: Number,
           faScore: Number,
         },
       ],

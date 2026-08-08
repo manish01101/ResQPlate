@@ -58,15 +58,13 @@ const hub = {
       ws.on("error", () => this.cleanup(ws));
     });
 
-    const interval = setInterval(() => {
+    this.interval = setInterval(() => {
       [...(this.wss?.clients || [])].forEach((client) => {
         if (client.isAlive === false) return client.terminate();
         client.isAlive = false;
         client.ping();
       });
     }, 30000);
-
-    this.wss.on("close", () => clearInterval(interval));
     return this.wss;
   },
 
@@ -167,6 +165,20 @@ async handleMessage(ws, msg) {
     room.forEach((sock) => {
       if (sock.readyState === 1) sock.send(json);
     });
+  },
+
+  stop() {
+    if (!this.wss) return;
+    clearInterval(this.interval);
+    [...(this.wss.clients || [])].forEach((client) => {
+      try {
+        client.terminate();
+      } catch {}
+    });
+    this.wss.close();
+    this.wss = null;
+    userSockets.clear();
+    claimSockets.clear();
   },
 };
 

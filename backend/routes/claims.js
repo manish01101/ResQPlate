@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const Claim = require("../models/claim");
 const Donation = require("../models/donation");
 const User = require("../models/user");
@@ -13,6 +14,10 @@ const { createAndSendNotification } = require("../utils/notify");
 router.post("/", protect, authorize("ngo"), async (req, res) => {
   try {
     const { donation_id } = req.body;
+    if (!mongoose.isValidObjectId(donation_id))
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid donation ID" });
 
     if (req.user.role !== "ngo" || !req.user.isVerified) {
       return res.status(403).json({
@@ -87,9 +92,33 @@ router.post("/", protect, authorize("ngo"), async (req, res) => {
 // @access Private (donor)
 // PUT /api/claims/:id/accept
 router.put("/:id/accept", protect, authorize("donor"), async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
-    const claim = await Claim.findById(req.params.id).populate("donation_id");
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      await session.abortTransaction();
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid claim ID" });
+    }
+
+    const claim = await Claim.findById(req.params.id)
+      .populate("donation_id")
+      .session(session);
+    if (!claim) {
+      await session.abortTransaction();
+      return res
+        .status(404)
+        .json({ success: false, message: "Claim not found" });
+    }
+    if (claim.status !== "pending") {
+      await session.abortTransaction();
+      return res
+        .status(400)
+        .json({ success: false, message: `Claim is already ${claim.status}` });
+    }
     if (claim.donation_id.donor_id.toString() !== req.user._id.toString()) {
+      await session.abortTransaction();
       return res
         .status(403)
         .json({ success: false, message: "Not your donation" });
@@ -101,11 +130,16 @@ router.put("/:id/accept", protect, authorize("donor"), async (req, res) => {
 
     claim.status = "accepted";
     claim.acceptedAt = new Date();
-    await claim.save();
+    await claim.save({ session });
 
-    await Donation.findByIdAndUpdate(claim.donation_id, {
-      status: "claimed",
-    });
+    await Donation.findByIdAndUpdate(
+      claim.donation_id,
+      { status: "claimed" },
+      { session, runValidators: true },
+    );
+
+    await session.commitTransaction();
+    session.endSession();
 
     // Notify the volunteer that their request was approved + share PIN
     await createAndSendNotification({
@@ -121,23 +155,48 @@ router.put("/:id/accept", protect, authorize("donor"), async (req, res) => {
 
     res.json({ success: true, data: claim });
   } catch (err) {
+    try {
+      await session.abortTransaction();
+    } catch {}
+    session.endSession();
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
 const completeClaimHandler = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
-    const claim = await Claim.findById(req.params.id).populate("donation_id");
-    if (!claim)
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      await session.abortTransaction();
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid claim ID" });
+    }
+
+    const claim = await Claim.findById(req.params.id)
+      .populate("donation_id")
+      .session(session);
+    if (!claim) {
+      await session.abortTransaction();
       return res
         .status(404)
         .json({ success: false, message: "Claim not found" });
+    }
+    if (claim.status !== "accepted") {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: `Only accepted claims can be completed (current: ${claim.status})`,
+      });
+    }
 
     const { pin, pickup_pin } = req.body;
     const expectedPin = String(claim.pickup_pin).trim();
     const receivedPin = String(pin ?? pickup_pin ?? "").trim();
 
     if (expectedPin !== receivedPin) {
+      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: "Invalid Pickup PIN. Please check with the donor.",
@@ -146,21 +205,26 @@ const completeClaimHandler = async (req, res) => {
 
     claim.status = "completed";
     claim.completedAt = new Date();
-    await claim.save();
+    await claim.save({ session });
 
-    await Donation.findByIdAndUpdate(claim.donation_id, {
-      status: "completed",
-    });
+    await Donation.findByIdAndUpdate(
+      claim.donation_id,
+      { status: "completed" },
+      { session, runValidators: true },
+    );
 
     // Update volunteer reliability score
-    const volunteer = await User.findById(claim.receiver_id);
+    const volunteer = await User.findById(claim.receiver_id).session(session);
     if (volunteer) {
       volunteer.totalPickups += 1;
       volunteer.updateReliability();
-      await volunteer.save();
+      await volunteer.save({ session });
     }
 
     const donor = await User.findById(claim.donation_id.donor_id);
+
+    await session.commitTransaction();
+    session.endSession();
 
     // Notify the donor pickup was completed
     await createAndSendNotification({
@@ -180,6 +244,10 @@ const completeClaimHandler = async (req, res) => {
       message: "Pickup confirmed! Reliability score updated.",
     });
   } catch (err) {
+    try {
+      await session.abortTransaction();
+    } catch {}
+    session.endSession();
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -194,37 +262,74 @@ router.put(["/:id/complete", "/:id/verify"], protect, completeClaimHandler);
 router.post(["/:id/complete", "/:id/verify"], protect, completeClaimHandler);
 
 // @route  PUT /api/claims/:id/cancel
-// @desc   Cancel a claim — penalizes reliability score
+// @desc   Cancel a claim — only volunteer-initiated cancels penalize reliability
 // @access Private
 router.put("/:id/cancel", protect, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
-    const claim = await Claim.findById(req.params.id).populate("donation_id");
-    if (!claim)
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      await session.abortTransaction();
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid claim ID" });
+    }
+
+    const claim = await Claim.findById(req.params.id)
+      .populate("donation_id")
+      .session(session);
+    if (!claim) {
+      await session.abortTransaction();
       return res
         .status(404)
         .json({ success: false, message: "Claim not found" });
+    }
+    if (claim.status === "completed") {
+      await session.abortTransaction();
+      return res
+        .status(400)
+        .json({ success: false, message: "Completed claims cannot be cancelled" });
+    }
+
+    // Only participants can cancel
+    const isDonor = req.user.role === "donor";
+    const isVolunteer = req.user.role === "ngo";
+    const isOwner =
+      (isDonor && String(claim.donation_id?.donor_id) === String(req.user._id)) ||
+      (isVolunteer && String(claim.receiver_id) === String(req.user._id));
+    if (!isOwner && req.user.role !== "admin") {
+      await session.abortTransaction();
+      return res
+        .status(403)
+        .json({ success: false, message: "Not authorized to cancel this claim" });
+    }
 
     claim.status = "cancelled";
     claim.cancelledAt = new Date();
-    await claim.save();
+    claim.cancelledBy = isVolunteer ? "ngo" : "donor";
+    await claim.save({ session });
 
     // Re-open the donation
-    await Donation.findByIdAndUpdate(claim.donation_id, {
-      status: "available",
-      claimed_by: null,
-      claimed_at: null,
-    });
+    await Donation.findByIdAndUpdate(
+      claim.donation_id,
+      { status: "available", claimed_by: null, claimed_at: null },
+      { session, runValidators: true },
+    );
 
-    // Penalize reliability
-    const volunteer = await User.findById(claim.receiver_id);
-    if (volunteer) {
-      volunteer.totalCancellations += 1;
-      volunteer.updateReliability();
-      await volunteer.save();
+    // Penalize reliability ONLY for volunteer-initiated cancellations
+    if (isVolunteer) {
+      const volunteer = await User.findById(claim.receiver_id).session(session);
+      if (volunteer) {
+        volunteer.totalCancellations += 1;
+        volunteer.updateReliability();
+        await volunteer.save({ session });
+      }
     }
 
+    await session.commitTransaction();
+    session.endSession();
+
     // Notify the counterparty depending on who cancelled/rejected
-    const isDonor = req.user.role === "donor";
     const recipientId = isDonor ? claim.receiver_id : claim.donation_id.donor_id;
     await createAndSendNotification({
       recipient: recipientId,
@@ -242,6 +347,10 @@ router.put("/:id/cancel", protect, async (req, res) => {
       message: "Claim cancelled. Donation relisted as available.",
     });
   } catch (err) {
+    try {
+      await session.abortTransaction();
+    } catch {}
+    session.endSession();
     res.status(500).json({ success: false, message: err.message });
   }
 });

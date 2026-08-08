@@ -27,6 +27,12 @@ const ClaimSchema = new mongoose.Schema({
   acceptedAt: Date,
   completedAt: Date,
   cancelledAt: Date,
+  // Who cancelled (donor or ngo) — only ngo-initiated cancels hurt reliability
+  cancelledBy: {
+    type: String,
+    enum: ['donor', 'ngo', null],
+    default: null
+  },
   // Distance at time of claim (km) — recorded for analytics
   distanceKm: Number,
   // mod-FA score that caused this volunteer to be selected

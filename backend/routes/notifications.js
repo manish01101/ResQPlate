@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const Notification = require("../models/notification");
 const { protect } = require("../middleware/auth");
 
@@ -8,12 +9,14 @@ const { protect } = require("../middleware/auth");
 // @access Private
 router.get("/", protect, async (req, res) => {
   try {
-    const { limit = 50 } = req.query;
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const notifications = await Notification.find({
       recipient: req.user._id,
     })
       .sort("-createdAt")
-      .limit(Math.min(parseInt(limit, 10) || 50, 200));
+      .limit(limit)
+      .skip((page - 1) * limit);
 
     const unread = await Notification.countDocuments({
       recipient: req.user._id,
@@ -51,6 +54,11 @@ router.get("/unread-count", protect, async (req, res) => {
 // @access Private
 router.put("/:id/read", protect, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id))
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid notification ID" });
+
     const notification = await Notification.findOne({
       _id: req.params.id,
       recipient: req.user._id,
@@ -87,6 +95,11 @@ router.put("/read-all", protect, async (req, res) => {
 // @access Private
 router.delete("/:id", protect, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id))
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid notification ID" });
+
     const notification = await Notification.findOneAndDelete({
       _id: req.params.id,
       recipient: req.user._id,

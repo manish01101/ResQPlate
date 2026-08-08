@@ -79,34 +79,56 @@ function nearestNeighbor(volunteers, donation) {
   return sorted[0] || null;
 }
 
-// ALGORITHM 2: Proposed mod-FA
+function clamp01(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0.5;
+  return Math.min(1, Math.max(0, n));
+}
+
+// ALGORITHM 2: Shipped mod-FA (mirrors backend/utils/algorithms.js)
+//   - surge radius: urgent food reaches further
+//   - gamma' decays with urgency (urgent food tolerates longer distances)
+//   - reliability mutation below the 0.5 threshold
+//   - final score: 60% intensity + 40% reliability
 function modFireflyAlgorithm(donation, volunteers) {
   const [donorLng, donorLat] = donation.location.coordinates;
-  const gamma = 0.005; // Light absorption coefficient scaled for km
-  const beta0 = 1.0; // Base attractiveness
+  const beta0 = 1.0;
+  const relThreshold = 0.5;
 
-  const candidates = volunteers.map((vol) => {
-    const [volLng, volLat] = vol.location.coordinates;
-    const r = haversineDistance(donorLat, donorLng, volLat, volLng);
+  let urgency = clamp01(donation.urgencyScore ?? 0.5);
+  const quantityKg =
+    typeof donation.quantity === "string"
+      ? parseFloat((donation.quantity.match(/\d+(\.\d+)?/) || ["0"])[0]) || 0
+      : 0;
+  if (quantityKg >= 20) {
+    urgency = Math.min(1, urgency * (1 + Math.min(0.05 * (quantityKg - 20), 0.3)));
+  }
 
-    // Attractiveness decays with distance squared
-    const beta = beta0 * Math.exp(-gamma * Math.pow(r, 2));
-    let intensity = donation.urgencyScore * beta;
+  const gammaEff = 0.1 * (1 - 0.8 * urgency);
+  const surgeRadius = 5 + 35 * urgency;
 
-    // Reliability Penalty: Heavily penalize unreliability
-    if (vol.reliabilityScore < 0.6) {
-      const penalty = vol.reliabilityScore / 0.6;
-      intensity = intensity * penalty;
-    }
+  const candidates = volunteers
+    .map((vol) => {
+      if (!vol.location || !Array.isArray(vol.location.coordinates)) return null;
+      const [volLng, volLat] = vol.location.coordinates;
+      const r = haversineDistance(donorLat, donorLng, volLat, volLng);
+      if (r > surgeRadius) return null;
 
-    // Final Score: 50% Urgency/Distance, 50% Track Record
-    const finalScore = intensity * 0.5 + vol.reliabilityScore * 0.5;
+      const beta = beta0 * Math.exp(-gammaEff * r * r);
+      let intensity = urgency * beta;
 
-    return { vol, distanceKm: r, finalScore };
-  });
+      // Reliability mutation: penalize unreliable volunteers
+      const reliability = clamp01(vol.reliabilityScore ?? 0.5);
+      if (reliability < relThreshold) {
+        intensity *= Math.max(reliability / relThreshold, 0.4);
+      }
 
-  // Return the volunteer with the highest evaluated score
-  candidates.sort((a, b) => b.finalScore - a.finalScore);
+      const finalScore = intensity * 0.6 + reliability * 0.4;
+      return { vol, distanceKm: r, reliabilityScore: reliability, finalScore };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.finalScore - a.finalScore);
+
   return candidates[0] || null;
 }
 

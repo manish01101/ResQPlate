@@ -1,11 +1,22 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const Donation = require("../models/donation");
 const User = require("../models/user");
 const { protect, authorize } = require("../middleware/auth");
-const { modFireflyAlgorithm } = require("../utils/algorithms");
+const {
+  modFireflyAlgorithm,
+  surgeRadiusKm,
+} = require("../utils/algorithms");
 const { sendEmailToRecipients } = require("../utils/notifications");
 const { notifyUsers } = require("../utils/notify");
+
+// Pagination helper: clamps and returns { skip, limit } for list endpoints
+const paginate = (query = {}) => {
+  const page = Math.max(parseInt(query.page, 10) || 1, 1);
+  const limit = Math.min(Math.max(parseInt(query.limit, 10) || 50, 1), 100);
+  return { skip: (page - 1) * limit, limit };
+};
 
 // @route  GET /api/donations
 // @desc   Get all available donations (Standard list)
@@ -13,10 +24,12 @@ const { notifyUsers } = require("../utils/notify");
 router.get("/", protect, async (req, res) => {
   try {
     const { status = "available" } = req.query;
+    const { skip, limit } = paginate(req.query);
     const donations = await Donation.find({ status })
       .populate("donor_id", "name phone location")
       .sort("-createdAt")
-      .limit(50);
+      .limit(limit)
+      .skip(skip);
 
     res.json({ success: true, count: donations.length, data: donations });
   } catch (err) {
@@ -26,11 +39,12 @@ router.get("/", protect, async (req, res) => {
 
 // @route  GET /api/donations/nearby
 // @desc   Get all available donations near a location
-// @query  lat, lng, radius (km, default 5), status
+// @query  lat, lng, radius (km, default 5), status, page, limit
 // @access Private
 router.get("/nearby", protect, async (req, res) => {
   try {
     const { lat, lng, radius = 5, status = "available" } = req.query;
+    const { skip, limit } = paginate(req.query);
     let query = { status };
 
     // Geo-spatial query using MongoDB 2dsphere index — O(log N)
@@ -48,7 +62,8 @@ router.get("/nearby", protect, async (req, res) => {
 
     const donations = await Donation.find(query)
       .populate("donor_id", "name phone location")
-      .limit(50);
+      .limit(limit)
+      .skip(skip);
 
     res.json({ success: true, count: donations.length, data: donations });
   } catch (err) {
@@ -70,11 +85,77 @@ router.get("/my", protect, authorize("donor"), async (req, res) => {
   }
 });
 
+// @route  GET /api/donations/ranking/:id — match transparency for the donor
+// @desc   Return the scored match breakdown (surge radius, distance factor,
+//         reliability, urgency bonus, final faScore) for a donation.
+// @access Private (donor who posted it or admin)
+router.get("/ranking/:id", protect, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id))
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid donation ID" });
+
+    const donation = await Donation.findById(req.params.id);
+    if (!donation)
+      return res
+        .status(404)
+        .json({ success: false, message: "Donation not found" });
+
+    if (
+      String(donation.donor_id) !== String(req.user._id) &&
+      req.user.role !== "admin"
+    ) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Not your donation" });
+    }
+
+    // Recompute against the current verified volunteer pool so the donor
+    // sees live breakdown data (and it stays honest after score updates).
+    const [donorLng, donorLat] = donation.location.coordinates;
+    const radiusKm = donation.surgeRadiusKm || surgeRadiusKm(donation.urgencyScore);
+    const candidates = await User.find({
+      role: { $in: ["ngo", "volunteer"] },
+      isVerified: true,
+      location: {
+        $near: {
+          $geometry: { type: "Point", coordinates: [donorLng, donorLat] },
+          $maxDistance: radiusKm * 1000,
+        },
+      },
+    }).limit(50);
+
+    const matched = modFireflyAlgorithm(donation, candidates, {
+      topK: 10,
+      radiusKm,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        donationId: donation._id,
+        food_title: donation.food_title,
+        surgeRadiusKm: matched.surgeRadiusKm,
+        urgency: matched.urgency,
+        candidates: matched.recipients,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // @route  GET /api/donations/:id
-// @desc   Get single donation by ID (MUST remain below /nearby and /my)
+// @desc   Get single donation by ID (MUST remain below /nearby, /my and /ranking)
 // @access Private
 router.get("/:id", protect, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id))
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid donation ID" });
+
     const donation = await Donation.findById(req.params.id)
       .populate("donor_id", "name phone location")
       .populate("claimed_by", "name phone");
@@ -147,7 +228,11 @@ router.post("/", protect, authorize("donor"), async (req, res) => {
       urgencyScore: donation.urgencyScore ?? 0.5,
     };
 
-    // Run mod-FA to find top volunteers to notify
+    // --- MOD-FA STEP 1: compute the surge search radius from urgency ---
+    // Urgent food reaches further (up to maxKm), fresh food stays local.
+    const surgeRadius = surgeRadiusKm(donationWithUrgency.urgencyScore);
+
+    // Run mod-FA to find top volunteers to notify (within the surge radius)
     const [donorLng, donorLat] = location.coordinates;
     const nearbyVolunteers = await User.find({
       role: { $in: ["ngo", "volunteer"] },
@@ -155,22 +240,21 @@ router.post("/", protect, authorize("donor"), async (req, res) => {
       location: {
         $near: {
           $geometry: { type: "Point", coordinates: [donorLng, donorLat] },
-          $maxDistance: 10000, // 10km search radius for notifications
+          $maxDistance: surgeRadius * 1000, // surge radius (km → metres)
         },
       },
-    }).limit(20);
+    }).limit(50);
 
     let recommendedRecipients = [];
     let notificationResults = [];
 
     if (nearbyVolunteers.length > 0) {
-      recommendedRecipients = modFireflyAlgorithm(
-        donationWithUrgency,
-        nearbyVolunteers,
-        {
-          topK: 3,
-        },
-      ).map((recipient) => {
+      const matched = modFireflyAlgorithm(donationWithUrgency, nearbyVolunteers, {
+        topK: 3,
+        radiusKm: surgeRadius,
+      });
+
+      recommendedRecipients = matched.recipients.map((recipient) => {
         const volunteer = nearbyVolunteers.find(
           (vol) => vol._id.toString() === recipient.volunteerId.toString(),
         );
@@ -181,13 +265,14 @@ router.post("/", protect, authorize("donor"), async (req, res) => {
       });
 
       console.log(
-        "[mod-FA] Recommended recipients:",
-        recommendedRecipients.map((v) => v.name),
+        `[mod-FA] "${donation.food_title}" urgency=${matched.urgency} surgeRadius=${matched.surgeRadiusKm}km -> ${recommendedRecipients.length} candidate(s)`,
       );
 
-      await Donation.findByIdAndUpdate(donation._id, {
-        recommendedRecipients,
-      });
+      await Donation.findByIdAndUpdate(
+        donation._id,
+        { recommendedRecipients, surgeRadiusKm: matched.surgeRadiusKm },
+        { runValidators: true },
+      );
 
       notificationResults = await sendEmailToRecipients(
         recommendedRecipients,
@@ -213,6 +298,7 @@ router.post("/", protect, authorize("donor"), async (req, res) => {
       data: savedDonation,
       recommendedRecipients,
       notificationResults,
+      surgeRadiusKm: surgeRadius,
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -223,6 +309,11 @@ router.post("/", protect, authorize("donor"), async (req, res) => {
 // @access Private (owner donor or admin)
 router.put("/:id", protect, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id))
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid donation ID" });
+
     let donation = await Donation.findById(req.params.id);
     if (!donation) {
       return res.status(404).json({ success: false, message: "Not found" });
@@ -279,6 +370,11 @@ router.put("/:id", protect, async (req, res) => {
 // @access Private (owner or admin)
 router.delete("/:id", protect, async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id))
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid donation ID" });
+
     const donation = await Donation.findById(req.params.id);
     if (!donation) {
       return res.status(404).json({ success: false, message: "Not found" });
