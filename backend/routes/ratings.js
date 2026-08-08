@@ -41,20 +41,23 @@ router.post("/", protect, async (req, res) => {
 
     const donation = await Donation.findById(claim.donation_id);
     const isNgo = String(claim.receiver_id) === String(req.user._id);
+    const isDonor =
+      !!donation && String(donation.donor_id) === String(req.user._id);
 
-    // Determine who this user is rating
-    let recipientId;
     if (req.user.role === "admin") {
       return res
         .status(403)
         .json({ success: false, message: "Admins cannot rate pickups" });
-    } else if (isNgo) {
-      // NGO rates the donor
-      recipientId = donation.donor_id;
-    } else {
-      // Donor rates the NGO
-      recipientId = claim.receiver_id;
     }
+    if (!isNgo && !isDonor) {
+      return res.status(403).json({
+        success: false,
+        message: "Only participants of this pickup can rate it",
+      });
+    }
+
+    // Determine who this user is rating
+    const recipientId = isNgo ? donation.donor_id : claim.receiver_id;
 
     const existing = await Rating.findOne({
       claim_id,
@@ -87,10 +90,21 @@ router.post("/", protect, async (req, res) => {
       recipient.avgRating = totalAvg;
       recipient.totalRatings = ratingsCount;
 
-      // Blend reliability slightly with the new rating (0-1 scale)
+      // Blend the rating with the pickup/cancellation history instead of
+      // discarding it: behavior still matters, ratings add a signal.
       if (totalAvg !== null) {
+        const ratingScore = totalAvg / 5;
+        const totalActivity =
+          recipient.totalPickups + recipient.totalCancellations;
+        let blended;
+        if (totalActivity === 0) {
+          blended = ratingScore;
+        } else {
+          const behavior = recipient.totalPickups / totalActivity;
+          blended = behavior * 0.4 + ratingScore * 0.6;
+        }
         recipient.reliabilityScore = parseFloat(
-          (totalAvg / 5).toFixed(3),
+          Math.min(1, Math.max(0, blended)).toFixed(3),
         );
       }
       await recipient.save();

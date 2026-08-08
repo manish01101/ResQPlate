@@ -7,21 +7,38 @@ const Donation = require("../models/donation");
 const userSockets = new Map(); // userId -> Set<ws>
 const claimSockets = new Map(); // claimId -> Set<ws>
 
+// JWT is delivered via Sec-WebSocket-Protocol subprotocol, not the query
+// string, so tokens never leak into server/proxy access logs.
+const AUTH_PROTOCOL_PREFIX = "resqauth-";
+
 const hub = {
   start(server) {
     if (this.wss) return this.wss;
 
-    this.wss = new WebSocketServer({ server, path: "/ws" });
+    this.wss = new WebSocketServer({
+      server,
+      path: "/ws",
+      handleProtocols: (protocols) => {
+        for (const protocol of protocols) {
+          if (protocol.startsWith(AUTH_PROTOCOL_PREFIX)) return protocol;
+        }
+        return false;
+      },
+    });
 
     this.wss.on("connection", (ws, req) => {
       ws.isAlive = true;
 
-      // Resolve identity from JWT in the query string
+      // Resolve identity from the JWT carried in the auth subprotocol
       let userId = null;
       try {
-        const url = new URL(req.url, "http://localhost");
-        const token = url.searchParams.get("token");
-        if (token) {
+        const header = req.headers["sec-websocket-protocol"] || "";
+        const offered = header.split(",").map((p) => p.trim());
+        const authProtocol = offered.find((p) =>
+          p.startsWith(AUTH_PROTOCOL_PREFIX),
+        );
+        if (authProtocol) {
+          const token = authProtocol.slice(AUTH_PROTOCOL_PREFIX.length);
           const decoded = jwt.verify(token, process.env.JWT_SECRET);
           userId = decoded.id;
         }

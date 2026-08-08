@@ -25,6 +25,19 @@ if (missingEnv.length > 0) {
 const app = express();
 const server = http.createServer(app);
 
+// Friendlier startup errors (e.g. port already in use) instead of a raw crash
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(
+      `[BOOT] Port ${process.env.PORT || 8080} is already in use (EADDRINUSE). ` +
+        "Stop the running backend instance or set PORT in your .env to a different value.",
+    );
+  } else {
+    console.error("[BOOT] Server error:", err);
+  }
+  process.exit(1);
+});
+
 // Connect to Database
 connectDB();
 
@@ -99,6 +112,7 @@ app.use("/api/admin", require("./routes/admin"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/chat", require("./routes/chat"));
 app.use("/api/ratings", require("./routes/ratings"));
+app.use("/api/bot", require("./routes/bot"));
 
 // Health check — readiness for load balancers / uptime monitors
 app.get("/", (req, res) =>

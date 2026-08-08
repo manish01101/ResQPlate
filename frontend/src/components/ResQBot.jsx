@@ -7,7 +7,7 @@ import {
   HiOutlineCamera,
   HiOutlineTrash,
 } from "react-icons/hi2";
-import { Groq } from "groq-sdk";
+import api from "../utils/api";
 
 const SYSTEM_INSTRUCTION = `You are ResQBot, the AI assistant for ResQPlate — a real-time food rescue platform. 
 Use a warm, professional, and eco-conscious tone. Use occasional botanical or food emojis (🌿, 🍱).
@@ -30,19 +30,6 @@ const QUICK_REPLIES = [
   { label: "Find NGOs near me", emoji: "📍" },
 ];
 
-let groqClient = null;
-try {
-  const key = import.meta.env.VITE_GROQ_API_KEY;
-  if (key) {
-    groqClient = new Groq({
-      apiKey: key,
-      dangerouslyAllowBrowser: true,
-    });
-  }
-} catch (e) {
-  console.error(e);
-}
-
 const FALLBACK_MESSAGE =
   "ResQBot is currently tending to the garden, but I will be back soon! 🌿";
 
@@ -53,15 +40,45 @@ function formatTime(ts) {
   });
 }
 
-function parseMarkdown(text) {
-  return text
-    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.*?)\*/g, "<em>$1</em>")
-    .replace(
-      /`(.*?)`/g,
-      "<code class='bg-gray-100 dark:bg-gray-800 px-1 rounded'>$1</code>",
-    )
-    .replace(/\n/g, "<br/>");
+// Minimal, safe markdown renderer (no dangerouslySetInnerHTML).
+function InlineMd({ text }) {
+  const nodes = [];
+  const regex = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+  let last = 0;
+  let match;
+  let key = 0;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > last) nodes.push(text.slice(last, match.index));
+    const token = match[0];
+    if (token.startsWith("**")) {
+      nodes.push(<strong key={key++}>{token.slice(2, -2)}</strong>);
+    } else {
+      nodes.push(
+        <code
+          key={key++}
+          className="bg-gray-100 dark:bg-gray-800 px-1 rounded"
+        >
+          {token.slice(1, -1)}
+        </code>,
+      );
+    }
+    last = match.index + token.length;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return <>{nodes}</>;
+}
+
+function MarkdownText({ text }) {
+  return (
+    <>
+      {text.split("\n").map((line, i) => (
+        <React.Fragment key={i}>
+          <InlineMd text={line} />
+          {i < text.split("\n").length - 1 && <br />}
+        </React.Fragment>
+      ))}
+    </>
+  );
 }
 
 const BotAvatar = ({ pulse }) => (
@@ -127,6 +144,7 @@ export default function ResQBot() {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [imageBase64, setImageBase64] = useState(null);
+  const [imageMime, setImageMime] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
   const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
@@ -171,54 +189,55 @@ export default function ResQBot() {
       setInputValue("");
 
       const capturedImage = imageBase64;
+      const capturedMime = imageMime;
       setImageBase64(null);
+      setImageMime(null);
       setImagePreview(null);
       setIsTyping(true);
 
-      let parts = [];
+      const prompt =
+        messageText ||
+        "Identify this food item. List its main ingredients, estimated shelf life, storage tips, and food safety warnings. Use emojis 🍎";
+
+      let content;
       if (capturedImage) {
         setIsAnalyzingImage(true);
         const base64Data = capturedImage.replace(/^data:.+;base64,/, "");
-        const prompt =
-          messageText ||
-          "Identify this food item. List its main ingredients, estimated shelf life, storage tips, and food safety warnings. Use emojis 🍎";
-        parts = [
-          { text: prompt },
-          { inlineData: { data: base64Data, mimeType: "image/jpeg" } },
+        content = [
+          { type: "text", text: prompt },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${capturedMime || "image/jpeg"};base64,${base64Data}`,
+            },
+          },
         ];
       } else {
-        parts = [{ text: messageText }];
+        content = prompt;
       }
 
-      chatHistoryRef.current.push({ role: "user", parts });
+      chatHistoryRef.current.push({ role: "user", content });
 
       try {
-        if (!groqClient) throw new Error("Groq client not initialized");
-
-        const apiMessages = [{ role: "system", content: SYSTEM_INSTRUCTION }];
+        const apiMessages = [
+          { role: "system", content: SYSTEM_INSTRUCTION },
+        ];
         chatHistoryRef.current.forEach((entry) => {
-          const text = entry.parts
-            .map((p) => p.text)
-            .filter(Boolean)
-            .join(" ");
-          if (text)
-            apiMessages.push({
-              role: entry.role === "user" ? "user" : "assistant",
-              content: text,
-            });
+          const role = entry.role === "model" ? "assistant" : "user";
+          if (typeof entry.content === "string" ? entry.content : entry.content?.length) {
+            apiMessages.push({ role, content: entry.content });
+          }
         });
 
-        const response = await groqClient.chat.completions.create({
-          model: "llama-3.1-8b-instant",
+        const res = await api.post("/bot/chat", {
           messages: apiMessages,
-          temperature: 0.7,
-          max_tokens: 300,
+          vision: !!capturedImage,
         });
 
-        const responseText = response.choices[0].message.content.trim();
+        const responseText = (res.data?.data?.content || "").trim();
         chatHistoryRef.current.push({
           role: "model",
-          parts: [{ text: responseText }],
+          content: responseText,
         });
         setMessages((prev) => [
           ...prev,
@@ -244,6 +263,7 @@ export default function ResQBot() {
       isOpen,
       isMinimized,
       imageBase64,
+      imageMime,
       imagePreview,
     ],
   );
@@ -251,6 +271,7 @@ export default function ResQBot() {
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setImageMime(file.type || "image/jpeg");
     const reader = new FileReader();
     reader.onload = () => {
       setImageBase64(reader.result);
@@ -263,6 +284,7 @@ export default function ResQBot() {
   const handleReset = () => {
     chatHistoryRef.current = [];
     setImageBase64(null);
+    setImageMime(null);
     setImagePreview(null);
     setMessages([
       {
@@ -361,18 +383,17 @@ export default function ResQBot() {
                             />
                           )}
                           <div
-                            className={`px-3.5 py-2.5 text-[13px] leading-relaxed break-words shadow-sm ${
+                            className={`px-3.5 py-2.5 text-[13px] leading-relaxed break-words shadow-sm whitespace-pre-wrap ${
                               msg.sender === "user"
                                 ? "bg-emerald-600 text-white rounded-2xl rounded-br-sm"
                                 : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-100 dark:border-gray-700 rounded-2xl rounded-bl-sm"
                             }`}
-                            dangerouslySetInnerHTML={
-                              msg.sender === "bot"
-                                ? { __html: parseMarkdown(msg.text) }
-                                : undefined
-                            }
                           >
-                            {msg.sender === "user" ? msg.text : undefined}
+                            {msg.sender === "bot" ? (
+                              <MarkdownText text={msg.text} />
+                            ) : (
+                              msg.text
+                            )}
                           </div>
                           <span className="text-[10px] text-gray-400 px-1">
                             {formatTime(msg.id)}
@@ -424,6 +445,7 @@ export default function ResQBot() {
                       <button
                         onClick={() => {
                           setImageBase64(null);
+                          setImageMime(null);
                           setImagePreview(null);
                         }}
                         className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 p-1"

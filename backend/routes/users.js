@@ -122,10 +122,17 @@ router.get("/impact", protect, async (req, res) => {
       const numbers = str.match(/\d+(\.\d+)?/g)?.map(Number) || [];
       const base = numbers[0] || 0;
       if (/\b(serv|meal|person|plate|people)\b/.test(str)) return Math.floor(base);
-      if (/\btray\b|\bkg\b|\bkg\b|\bkilogram/.test(str)) {
-        // ~2.5 meals per kg of food; trays ~ 15 meals
-        const perUnit = /\btray/.test(str) ? 15 : 2.5;
-        return Math.floor(base * perUnit);
+      if (/\btray/.test(str)) {
+        // Trays ~ 15 meals per tray
+        return Math.floor(base * 15);
+      }
+      if (
+        /\bkg\b|\bkilogram/.test(str) ||
+        /\b\d+(\.\d+)?\s*kgs?\b/.test(str) ||
+        /\b\d+\s*kilograms?\b/.test(str)
+      ) {
+        // ~2.5 meals per kg of food
+        return Math.floor(base * 2.5);
       }
       // Fallback: treat the raw number as servings
       return Math.floor(base);

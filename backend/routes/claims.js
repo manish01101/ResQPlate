@@ -12,14 +12,19 @@ const { createAndSendNotification } = require("../utils/notify");
 // @desc   NGO/Volunteer claims a donation
 // @access Private (ngo)
 router.post("/", protect, authorize("ngo"), async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { donation_id } = req.body;
-    if (!mongoose.isValidObjectId(donation_id))
+    if (!mongoose.isValidObjectId(donation_id)) {
+      await session.abortTransaction();
       return res
         .status(400)
         .json({ success: false, message: "Invalid donation ID" });
+    }
 
     if (req.user.role !== "ngo" || !req.user.isVerified) {
+      await session.abortTransaction();
       return res.status(403).json({
         success: false,
         message:
@@ -27,47 +32,72 @@ router.post("/", protect, authorize("ngo"), async (req, res) => {
       });
     }
 
-    const donation = await Donation.findById(donation_id);
-    if (!donation)
+    const donation = await Donation.findById(donation_id).session(session);
+    if (!donation) {
+      await session.abortTransaction();
       return res
         .status(404)
         .json({ success: false, message: "Donation not found" });
+    }
     if (donation.status !== "available") {
+      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: `Donation is already ${donation.status}`,
       });
     }
 
-    // Prevent duplicate claims from same user
+    // Prevent duplicate claims from same user (inside the transaction)
     const existing = await Claim.findOne({
       donation_id,
       receiver_id: req.user._id,
       status: { $in: ["pending", "accepted"] },
-    });
-    if (existing)
+    }).session(session);
+    if (existing) {
+      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: "You have already claimed this donation",
       });
+    }
 
     // Calculate distance at time of claim
     const [dLng, dLat] = donation.location.coordinates;
     const [vLng, vLat] = req.user.location.coordinates;
     const distanceKm = haversineDistance(dLat, dLng, vLat, vLng);
 
-    const claim = await Claim.create({
-      donation_id,
-      receiver_id: req.user._id,
-      distanceKm,
-      faScore: req.body.faScore || null,
-    });
+    const [claim] = await Claim.create(
+      [
+        {
+          donation_id,
+          receiver_id: req.user._id,
+          distanceKm,
+          faScore: req.body.faScore || null,
+        },
+      ],
+      { session },
+    );
 
-    // Mark donation as claimed and lock it from other volunteers
-    donation.status = "claimed";
-    donation.claimed_by = req.user._id;
-    donation.claimed_at = new Date();
-    await donation.save();
+    // Atomically lock the donation — closes the double-claim race window
+    const locked = await Donation.findOneAndUpdate(
+      { _id: donation_id, status: "available" },
+      {
+        status: "claimed",
+        claimed_by: req.user._id,
+        claimed_at: new Date(),
+      },
+      { session, new: true, runValidators: true },
+    );
+    if (!locked) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: "This donation was just claimed by someone else.",
+      });
+    }
+
+    await session.commitTransaction();
+    session.endSession();
 
     // Notify the donor in real-time that a volunteer wants their food
     await createAndSendNotification({
@@ -83,6 +113,10 @@ router.post("/", protect, authorize("ngo"), async (req, res) => {
 
     res.status(201).json({ success: true, data: claim });
   } catch (err) {
+    try {
+      await session.abortTransaction();
+    } catch {}
+    session.endSession();
     res.status(500).json({ success: false, message: err.message });
   }
 });

@@ -17,10 +17,30 @@ export default function AdminPage() {
   const [tab, setTab] = useState("users");
   const [loading, setLoading] = useState(true);
   const [searchUser, setSearchUser] = useState("");
+  const [verificationDetails, setVerificationDetails] = useState({});
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Fetch the sensitive verification record lazily, only for users
+  // waiting for review (never in the bulk users list).
+  useEffect(() => {
+    users
+      .filter((u) => u.role !== "admin" && u.verificationStatus === "pending")
+      .forEach((u) => {
+        if (verificationDetails[u._id]) return;
+        api
+          .get(`/admin/users/${u._id}/verification`)
+          .then((res) =>
+            setVerificationDetails((prev) => ({
+              ...prev,
+              [u._id]: res.data.data,
+            })),
+          )
+          .catch(() => {});
+      });
+  }, [users, verificationDetails]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -122,9 +142,7 @@ export default function AdminPage() {
 
   const pendingVerificationRequests = users.filter(
     (u) =>
-      u.role !== "admin" &&
-      !u.isVerified &&
-      (u.verificationStatus === "pending" || u.verificationDocument),
+      u.role !== "admin" && u.verificationStatus === "pending",
   );
 
   const getDocumentPreviewType = (url) => {
@@ -258,62 +276,70 @@ export default function AdminPage() {
                   </div>
 
                   <div className="space-y-3">
-                    {pendingVerificationRequests.map((u) => (
-                      <div
-                        key={u._id}
-                        className="rounded-xl border border-amber-200 bg-white p-4 shadow-sm dark:border-amber-800 dark:bg-slate-900"
-                      >
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                          <div className="space-y-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-bold text-gray-900 dark:text-slate-100">
-                                {u.name}
-                              </span>
-                              <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold uppercase text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                                {u.role}
-                              </span>
-                              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold uppercase text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                                {u.verificationStatus || "pending"}
-                              </span>
+                    {pendingVerificationRequests.map((u) => {
+                      const detail = verificationDetails[u._id];
+                      return (
+                        <div
+                          key={u._id}
+                          className="rounded-xl border border-amber-200 bg-white p-4 shadow-sm dark:border-amber-800 dark:bg-slate-900"
+                        >
+                          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="space-y-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-bold text-gray-900 dark:text-slate-100">
+                                  {u.name}
+                                </span>
+                                <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold uppercase text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                                  {u.role}
+                                </span>
+                                <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold uppercase text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                                  {u.verificationStatus || "pending"}
+                                </span>
+                              </div>
+                              <div className="text-sm text-gray-600 dark:text-slate-400">
+                                <p>{u.email}</p>
+                                <p>Phone: {u.phone || "Not provided"}</p>
+                                <p>
+                                  Aadhaar:{" "}
+                                  {detail?.aadhaarNumber || "Not provided"}
+                                </p>
+                                <p>
+                                  Document type:{" "}
+                                  {detail?.verificationDocumentType ||
+                                    "Aadhaar"}
+                                </p>
+                                <p>
+                                  Submitted:{" "}
+                                  {u.verificationSubmittedAt
+                                    ? new Date(
+                                        u.verificationSubmittedAt,
+                                      ).toLocaleString()
+                                    : "Not submitted"}
+                                </p>
+                              </div>
+                              {detail?.verificationNotes && (
+                                <p className="text-sm text-gray-700 dark:text-slate-300">
+                                  <span className="font-semibold">
+                                    Admin note:
+                                  </span>{" "}
+                                  {detail.verificationNotes}
+                                </p>
+                              )}
                             </div>
-                            <div className="text-sm text-gray-600 dark:text-slate-400">
-                              <p>{u.email}</p>
-                              <p>Phone: {u.phone || "Not provided"}</p>
-                              <p>
-                                Aadhaar: {u.aadhaarNumber || "Not provided"}
-                              </p>
-                              <p>
-                                Document type:{" "}
-                                {u.verificationDocumentType || "Aadhaar"}
-                              </p>
-                              <p>
-                                Submitted:{" "}
-                                {u.verificationSubmittedAt
-                                  ? new Date(
-                                      u.verificationSubmittedAt,
-                                    ).toLocaleString()
-                                  : "Not submitted"}
-                              </p>
-                            </div>
-                            {u.verificationNotes && (
-                              <p className="text-sm text-gray-700 dark:text-slate-300">
-                                <span className="font-semibold">
-                                  Admin note:
-                                </span>{" "}
-                                {u.verificationNotes}
-                              </p>
-                            )}
-                          </div>
 
-                          <div className="flex flex-col gap-3">
-                            {u.verificationDocument ? (
+                            <div className="flex flex-col gap-3">
+                              {!detail ? (
+                                <div className="w-full min-w-[240px] rounded-xl border border-gray-200 bg-gray-50 p-3 text-center text-sm text-gray-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+                                  Loading verification document...
+                                </div>
+                              ) : detail.verificationDocument ? (
                               <div className="w-full min-w-[240px] rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 dark:border-emerald-800 dark:bg-emerald-950/20">
                                 <div className="mb-2 flex items-center justify-between gap-2">
                                   <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
                                     Submitted document
                                   </p>
                                   <a
-                                    href={u.verificationDocument}
+                                    href={detail.verificationDocument}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="text-xs font-semibold text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300"
@@ -323,18 +349,18 @@ export default function AdminPage() {
                                 </div>
 
                                 {getDocumentPreviewType(
-                                  u.verificationDocument,
+                                  detail.verificationDocument,
                                 ) === "image" ? (
                                   <img
-                                    src={u.verificationDocument}
+                                    src={detail.verificationDocument}
                                     alt="Uploaded verification document"
                                     className="max-h-48 w-full rounded-lg border border-emerald-200 bg-white object-contain dark:border-emerald-800 dark:bg-slate-950"
                                   />
                                 ) : getDocumentPreviewType(
-                                    u.verificationDocument,
+                                    detail.verificationDocument,
                                   ) === "pdf" ? (
                                   <iframe
-                                    src={u.verificationDocument}
+                                    src={detail.verificationDocument}
                                     title="Uploaded verification document"
                                     className="h-48 w-full rounded-lg border border-emerald-200 bg-white dark:border-emerald-800 dark:bg-slate-950"
                                   />
@@ -367,7 +393,8 @@ export default function AdminPage() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 </div>
               )}
@@ -436,7 +463,7 @@ export default function AdminPage() {
                             <X className="w-4 h-4" />
                             Rejected
                           </span>
-                        ) : u.verificationDocument ? (
+                        ) : u.verificationStatus === "pending" ? (
                           <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
                             <X className="w-4 h-4" />
                             Pending review

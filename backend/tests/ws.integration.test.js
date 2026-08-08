@@ -49,9 +49,9 @@ afterEach(async () => {
 const connectSocket = (userId) =>
   new Promise((resolve, reject) => {
     const port = server.address().port;
-    const ws = new WebSocket(
-      `ws://localhost:${port}/ws?token=${encodeURIComponent(signToken(userId))}`,
-    );
+    const ws = new WebSocket(`ws://localhost:${port}/ws`, [
+      `resqauth-${signToken(userId)}`,
+    ]);
     ws.on("open", () => resolve(ws));
     ws.on("error", reject);
   });

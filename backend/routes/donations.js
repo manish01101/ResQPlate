@@ -18,6 +18,32 @@ const paginate = (query = {}) => {
   return { skip: (page - 1) * limit, limit };
 };
 
+// Validate a [lng, lat] coordinate pair (finite, in-range numbers)
+const isValidPoint = (coords) =>
+  Array.isArray(coords) &&
+  coords.length === 2 &&
+  Number.isFinite(Number(coords[0])) &&
+  Number.isFinite(Number(coords[1])) &&
+  Number(coords[0]) >= -180 &&
+  Number(coords[0]) <= 180 &&
+  Number(coords[1]) >= -90 &&
+  Number(coords[1]) <= 90;
+
+// Parse + validate an expiry datetime string. Returns an error message or null.
+const expiryError = (value) => {
+  if (value === undefined || value === null || value === "") {
+    return "Validation error: a valid expiry date/time is required.";
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "Validation error: expiry date/time must be a valid date.";
+  }
+  if (parsed < new Date()) {
+    return "Validation error: Expiry date cannot be in the past.";
+  }
+  return null;
+};
+
 // @route  GET /api/donations
 // @desc   Get all available donations (Standard list)
 // @access Private
@@ -45,6 +71,31 @@ router.get("/nearby", protect, async (req, res) => {
   try {
     const { lat, lng, radius = 5, status = "available" } = req.query;
     const { skip, limit } = paginate(req.query);
+
+    const latNum = parseFloat(lat);
+    const lngNum = parseFloat(lng);
+    if (lat || lng) {
+      if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+        return res.status(400).json({
+          success: false,
+          message: "lat and lng must both be valid numbers when provided",
+        });
+      }
+      if (latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180) {
+        return res.status(400).json({
+          success: false,
+          message: "lat/lng values are out of range",
+        });
+      }
+    }
+    const radiusNum = parseFloat(radius);
+    if (!Number.isFinite(radiusNum) || radiusNum <= 0 || radiusNum > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "radius must be a number between 0 and 100 km",
+      });
+    }
+
     let query = { status };
 
     // Geo-spatial query using MongoDB 2dsphere index — O(log N)
@@ -53,9 +104,9 @@ router.get("/nearby", protect, async (req, res) => {
         $near: {
           $geometry: {
             type: "Point",
-            coordinates: [parseFloat(lng), parseFloat(lat)],
+            coordinates: [lngNum, latNum],
           },
-          $maxDistance: parseFloat(radius) * 1000, // Convert km → metres
+          $maxDistance: radiusNum * 1000, // Convert km → metres
         },
       };
     }
@@ -193,23 +244,24 @@ router.post("/", protect, authorize("donor"), async (req, res) => {
     } = req.body;
 
     // --- SAFETY CHECK: Coordinates ---
-    if (
-      !location ||
-      !location.coordinates ||
-      location.coordinates.length !== 2
-    ) {
+    if (!location || !isValidPoint(location.coordinates)) {
       return res.status(400).json({
         success: false,
-        message: "Valid location coordinates are required.",
+        message:
+          "Valid [lng, lat] coordinates within range are required.",
+      });
+    }
+    if (!location.address || !String(location.address).trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "A pickup address is required.",
       });
     }
 
     // --- SAFETY CHECK: Expiry Date (Fixes TC03) ---
-    if (new Date(expiry_datetime) < new Date()) {
-      return res.status(400).json({
-        success: false,
-        message: "Validation error: Expiry date cannot be in the past.",
-      });
+    const expiryErr = expiryError(expiry_datetime);
+    if (expiryErr) {
+      return res.status(400).json({ success: false, message: expiryErr });
     }
 
     const donation = await Donation.create({
@@ -336,14 +388,14 @@ router.put("/:id", protect, async (req, res) => {
     }
 
     // --- SAFETY CHECK: Edited Expiry Date ---
-    if (
-      req.body.expiry_datetime &&
-      new Date(req.body.expiry_datetime) < new Date()
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Validation error: Expiry date cannot be in the past.",
-      });
+    if (req.body.expiry_datetime !== undefined) {
+      const expiryErr = expiryError(req.body.expiry_datetime);
+      if (expiryErr) {
+        return res.status(400).json({
+          success: false,
+          message: expiryErr,
+        });
+      }
     }
 
     const allowed = [

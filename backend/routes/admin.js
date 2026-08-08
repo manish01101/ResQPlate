@@ -42,11 +42,30 @@ router.get("/stats", async (req, res) => {
 });
 
 // @route  GET /api/admin/users
-// @desc   List all users
+// @desc   List all users (sensitive verification PII excluded)
 router.get("/users", async (req, res) => {
   try {
-    const users = await User.find().sort("-createdAt");
+    const users = await User.find()
+      .select("-aadhaarNumber -verificationDocument -verificationNotes")
+      .sort("-createdAt");
     res.json({ success: true, count: users.length, data: users });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// @route  GET /api/admin/users/:id/verification
+// @desc   Full verification record (PII) for a single user being reviewed
+router.get("/users/:id/verification", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select(
+      "name email phone role isVerified verificationStatus verificationDocument verificationDocumentType verificationNotes verificationSubmittedAt verificationReviewedAt aadhaarNumber",
+    );
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    res.json({ success: true, data: user });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

@@ -13,17 +13,35 @@ class ReconnectingWebSocket extends Emitter {
     this.counter = 0;
     this.shouldReconnect = true;
     this.reconnectDelay = 1000;
+    this.pending = [];
     this.connect();
+  }
+
+  flush() {
+    const pending = this.pending;
+    this.pending = [];
+    if (this.ws?.readyState !== WebSocket.OPEN) return;
+    pending.forEach((frame) => {
+      try {
+        this.ws.send(frame);
+      } catch {
+        /* ignore */
+      }
+    });
   }
 
   connect() {
     const token = getToken();
-    const wsUrl = token ? `${this.url}/ws?token=${encodeURIComponent(token)}` : `${this.url}/ws`;
-    this.ws = new WebSocket(wsUrl);
+    const wsUrl = `${this.url}/ws`;
+    // Auth travels in the subprotocol so the token never hits access logs
+    this.ws = token
+      ? new WebSocket(wsUrl, [`resqauth-${token}`])
+      : new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
       this.reconnectDelay = 1000;
       this.dispatch("connect");
+      this.flush();
     };
 
     this.ws.onmessage = (event) => {
@@ -47,16 +65,19 @@ class ReconnectingWebSocket extends Emitter {
     };
   }
 
-  // socket.io-compatible `emit` that sends a JSON frame
+  // socket.io-compatible `emit` that sends a JSON frame (queued until open)
   emit(type, payload = {}) {
     if (typeof type !== "string") return;
     const frame =
       type === "joinPickup" || type === "leavePickup"
         ? { type, claimId: payload }
         : { type, ...payload };
+    const json = JSON.stringify(frame);
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(frame));
+      this.ws.send(json);
+      return;
     }
+    if (this.pending.length < 50) this.pending.push(json);
   }
 
   refresh() {
