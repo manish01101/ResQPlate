@@ -2,6 +2,8 @@
 
 ResQPlate is a production-grade, location-based food rescue platform designed to bridge the gap between food donors (restaurants, events, individuals) and registered NGOs/volunteers. By leveraging real-time geospatial tracking, smart routing algorithms, and secure handoff protocols, ResQPlate ensures surplus food reaches those in need before it expires.
 
+This is our **Final Year B.Tech Project**, built by a team of five contributors (see [Contributors](#contributors)).
+
 ---
 
 ## Key Features
@@ -183,3 +185,19 @@ npm install
 # Create your .env file here (see frontend/.env.example)
 npm run dev
 ```
+
+---
+
+## Contributors
+
+This is our **Final Year B.Tech Project**, developed by:
+
+* [**Manish Kumar**](https://github.com/manish01101)
+* [**Salony Ranjan**](https://github.com/salonyranjan)
+* [**Amit Kumar Choudhary**](https://github.com/amit11001)
+* [**Sanjeev Kumar**](https://github.com/sanjeev1618)
+* [**Dipu Kumar**]()
+
+**Project Guide:**
+
+* **Prof. Sourish Mullick** — Assistant Professor, Department of Computer Science & Business Systems (CSBS), [Netaji Subhash Engineering College (NSEC)](https://www.nsec.ac.in/), Kolkata
